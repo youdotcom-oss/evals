@@ -1,0 +1,17 @@
+[project]
+name = "evals"
+version = "0.0.1"
+authors = [
+  { name="Eddy Nassif" },
+  { name="Zairah Mustahsan" },
+]
+description = "A repository for running evaluations"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/youdotcom-oss/evals.git"
