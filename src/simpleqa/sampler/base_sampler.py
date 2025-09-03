@@ -205,7 +205,11 @@ class BaseSampler(ABC):
             )
             formatted_results = self.__format_context__(raw_results)
         except Exception as e:
-            raw_results, response_time_no_retries, formatted_results = "FAILED", "FAILED", "FAILED"
+            raw_results, response_time_no_retries, formatted_results = (
+                "FAILED",
+                "FAILED",
+                "FAILED",
+            )
             logging.exception(e)
 
         # Synthesize raw results
@@ -228,7 +232,7 @@ class BaseSampler(ABC):
                 )
                 evaluation_result = evaluation_result_dict["score_name"]
             else:
-                raise ValueError(f"Ground truth is missing")
+                raise ValueError("Ground truth is missing")
         except Exception as e:
             evaluation_result = "FAILED"
             logging.exception(e)
