@@ -5,6 +5,7 @@ Available samplers can be found in get_samplers() or in the `sampler/` folder
 
 import argparse
 import asyncio
+import glob
 import logging
 import os
 from pathlib import Path
@@ -132,7 +133,6 @@ async def get_search_results_and_run_evals(
             desc=f"Running sampler: {sampler.sampler_name}",
             unit="queries",
         ) as pbar:
-            sampler_results = []
             semaphore = asyncio.Semaphore(args.max_concurrent_tasks)
 
             for i in range(0, len(df), args.batch_size):
@@ -153,13 +153,10 @@ async def get_search_results_and_run_evals(
                 pbar.update(len(batch_df))
 
                 await asyncio.gather(*[t for t in tasks if not t.done()])
-                sampler_results.extend(batch_results)
-                write_raw_sampler_results(sampler_results, sampler.sampler_name)
+                # Write results of each batch so we can keep progress in case of a failure
+                write_raw_sampler_results(batch_results, sampler.sampler_name)
 
-        results[sampler.sampler_name] = sampler_results
         await sampler.close()
-
-    return results
 
 
 def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: str):
@@ -173,11 +170,12 @@ def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: st
         os.mkdir("src/simpleqa/results")
 
     sampler_results_filepath = get_sampler_filepath(sampler_name)
-    if os.path.isdir(sampler_results_filepath):
+    if os.path.isfile(sampler_results_filepath):
         # If file already exists, append
         df_sampler_results.to_csv(
             sampler_results_filepath,
             index=False,
+            header=False,
             mode="a",
         )
     else:
@@ -187,11 +185,14 @@ def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: st
         )
 
 
-def write_metrics(results):
+def write_metrics():
     """Calculate metrics from raw results such as average score, P50 latency"""
+    results_path = Path(os.getcwd(), "src/simpleqa/results")
+    files = glob.glob(f"{results_path}/raw_results_*.csv")
     metric_rows = []
-    for sampler in results.keys():
-        df_sampler_results = pd.DataFrame(results[sampler])
+    for sampler_results_file in files:
+        sampler_name = sampler_results_file.split("raw_results_")[-1].split(".")[0]
+        df_sampler_results = pd.read_csv(sampler_results_file)
         successful_df = df_sampler_results[
             df_sampler_results["response_time_ms"] != "FAILED"
         ]
@@ -205,16 +206,15 @@ def write_metrics(results):
 
         metric_rows.append(
             {
-                "provider": sampler,
+                "provider": sampler_name,
                 "average_score": average_score,
                 "p50_latency": p50_latency,
                 "problem_count": count_answered,
             }
         )
 
-    pd.DataFrame(metric_rows).to_csv(
-        "src/simpleqa/results/simpleqa_results.csv", index=False
-    )
+    write_path = Path(os.getcwd(), "src/simpleqa/results/simpleqa_results.csv")
+    pd.DataFrame(metric_rows).to_csv(write_path, index=False)
 
 
 async def main():
@@ -266,8 +266,8 @@ async def main():
 
     args = parser.parse_args()
 
-    raw_results = await get_search_results_and_run_evals(args)
-    write_metrics(raw_results)
+    await get_search_results_and_run_evals(args)
+    write_metrics()
 
 
 if __name__ == "__main__":
