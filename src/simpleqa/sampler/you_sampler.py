@@ -36,7 +36,7 @@ class YouSampler(BaseSampler):
 
     @staticmethod
     def _get_endpoint() -> str:
-        return "search/"
+        return "v1/search/"
 
     @staticmethod
     def _get_method() -> str:
@@ -53,8 +53,8 @@ class YouSampler(BaseSampler):
     @staticmethod
     def __format_context__(results: Any) -> str:
         formatted_results = []
-        if "hits" in results:
-            for result in results["hits"]:
+        if "results" in results:
+            for result in results['results']['web']:
                 if isinstance(result, dict):
                     title = result.get("title", "")
                     url = result.get("url", "")
