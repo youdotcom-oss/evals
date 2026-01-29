@@ -23,7 +23,6 @@ class BaseSampler(ABC):
         self.sampler_name = sampler_name
         self.timeout = timeout
         self.max_retries = max_retries
-        self.num_results = num_results
         self.max_concurrency = max_concurrency
         self.needs_synthesis = needs_synthesis
         self.custom_args = custom_args

@@ -15,10 +15,7 @@ from typing import Any, Dict
 import pandas as pd
 from tqdm import tqdm
 
-from evals.samplers.applied_samplers.exa_sampler import ExaSampler
-from evals.samplers.applied_samplers.serp_api_google_sampler import SerpApiGoogleSampler
-from evals.samplers.applied_samplers.tavily_sampler import TavilySampler
-from evals.samplers.applied_samplers.you_sampler import YouSampler
+from evals.configs import samplers
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -30,40 +27,14 @@ def get_sampler_filepath(sampler_name):
     return Path(os.getcwd(), f"src/evals/results/raw_results_{sampler_name}.csv")
 
 
-def get_samplers(args: argparse.Namespace):
+def get_sampler(sampler_name: str):
     """Initialize requested samplers"""
-    samplers = {
-        "you_unified_search": YouSampler(
-            sampler_name="you_unified_search",
-            num_results=args.num_results,
-            api_key=os.getenv("YOU_API_KEY"),
-        ),
-        # "tavily": TavilySampler(sampler_name="tavily", num_results=args.num_results),
-        # "google": SerpApiGoogleSampler(
-        #     sampler_name="google", num_results=args.num_results
-        # ),
-        # "exa": ExaSampler(
-        #     sampler_name="exa_highlights",
-        #     num_results=args.num_results,
-        #     custom_args={"type_": None},
-        # ),
-        # "exa_fast": ExaSampler(
-        #     sampler_name="exa_highlights_fast",
-        #     num_results=args.num_results,
-        #     custom_args={"type_": "fast"},
-        # ),
-    }
-
-    sampler_list = []
-    for sampler in args.samplers:
-        if sampler in samplers:
-            sampler_list.append(samplers[sampler])
-        else:
-            raise ValueError(
-                f"Could not find sampler {sampler}. Please select from {list(samplers.keys())}"
-            )
-
-    return sampler_list
+    sampler = next(
+        (sampler for sampler in samplers.SAMPLERS if sampler.sampler_name == sampler_name), None
+    )
+    if sampler is None:
+        raise ValueError(f"Sampler '{sampler_name}' not found")
+    return sampler
 
 
 def clean_results_folder():
@@ -97,7 +68,7 @@ async def process_query_with_semaphore(
 
 async def get_search_results_and_run_evals(
     args: argparse.Namespace,
-) -> Dict[str, list[str | Any]]:
+):
     """
     Run SimpleQA benchmark for each sampler.
 
@@ -112,9 +83,9 @@ async def get_search_results_and_run_evals(
     if args.clean:
         clean_results_folder()
 
-    samplers = get_samplers(args)
     results = {}
-    for sampler in samplers:
+    for sampler_name in args.samplers:
+        sampler = get_sampler(sampler_name)
         # Only run on problems that are not already in results folder
         remaining_problems = get_remaining_problems(df, sampler.sampler_name)
         if len(remaining_problems) == 0:
@@ -159,8 +130,6 @@ async def get_search_results_and_run_evals(
                 await asyncio.gather(*[t for t in tasks if not t.done()])
                 # Write results of each batch so we can keep progress in case of a failure
                 write_raw_sampler_results(batch_results, sampler.sampler_name)
-
-        # await sampler.close()
 
 
 def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: str):

@@ -48,7 +48,7 @@ class SerpApiGoogleSampler(BaseSampler):
         return {
             "q": query,
             "engine": "google",
-            "num": self.num_results,
+            "num": 5,
             "api_key": self.api_key,
         }
 

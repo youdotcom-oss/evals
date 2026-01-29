@@ -1,62 +1,56 @@
-import os
+"""Run evals using the Tavily SDK"""
 from typing import Any, Dict
 
-from evals.samplers.base_samplers.base_sampler import BaseSampler
+from tavily import TavilyClient
+
+from evals.samplers.base_samplers.base_sdk_sampler import BaseSDKSampler
 
 
-class TavilySampler(BaseSampler):
-    @property
-    def needs_synthesis(self) -> bool:
-        return True  # Search provider, needs answer synthesis
-
+class TavilySampler(BaseSDKSampler):
     def __init__(
         self,
         sampler_name: str,
-        max_retries: int = 3,
+        api_key: str = None,
         timeout: float = 60.0,
+        max_retries: int = 3,
         num_results: int = 5,
+        max_concurrency: int = 10,
+        needs_synthesis: bool = True,
         custom_args: Dict[str, Any] | None = None,
     ):
         super().__init__(
-            sampler_name,
-            os.getenv("TAVILY_API_KEY"),
-            max_retries,
-            timeout,
-            num_results,
-            custom_args,
+            sampler_name=sampler_name,
+            api_key=api_key,
+            max_retries=max_retries,
+            timeout=timeout,
+            num_results=num_results,
+            max_concurrency=max_concurrency,
+            needs_synthesis=needs_synthesis,
+            custom_args=custom_args,
         )
 
-    @staticmethod
-    def _get_base_url():
-        return "https://api.tavily.com/"
+    def _initialize_client(self):
+        self.client = TavilyClient(self.api_key)
 
-    @staticmethod
-    def _get_endpoint() -> str:
-        return "search"
+    def _get_search_results_impl(self, query: str) -> Any:
+        if self.custom_args and self.custom_args["search_depth"]:
+            return self.client.search(
+                query=query,
+                max_results=5,
+                search_depth=self.custom_args["search_depth"],
+            )
+        raise ValueError("Unknown configuration for Tavily")
 
-    @staticmethod
-    def _get_method() -> str:
-        return "POST"
-
-    def _get_headers(self) -> Dict[str, str]:
-        return {"Authorization": f"Bearer {self.api_key}"}
-
-    def _get_payload(
-        self, query: str, custom_args: Dict[str, Any] | None = None
-    ) -> Dict[str, Any]:
-        return {
-            "query": query,
-            "max_results": self.num_results,
-        }
-
-    @staticmethod
-    def __format_context__(results: Any) -> str:
+    def format_results(self, results: Any) -> str:
         formatted_results = []
-        if "results" in results:
-            for result in results["results"]:
-                if isinstance(result, dict):
-                    title = result.get("title", "")
-                    url = result.get("url", "")
-                    content = result.get("content", "")
-                    formatted_results.append(f"[{title}]({url})\n{content}\n")
+        raw_results = results["results"]
+
+        for result in raw_results:
+            if isinstance(result, dict):
+                title = getattr(result, "title", "")
+                url = getattr(result, "url", "")
+                content = getattr(result, "content", "")
+                if content:
+                    formatted_results.append(f"[{title}]({url})\ncontent: {content}\n")
+
         return "\n---\n".join(formatted_results)

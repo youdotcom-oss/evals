@@ -38,7 +38,7 @@ class BaseSDKSampler(BaseSampler):
         if self.api_key:
             self._initialize_client()
         else:
-            raise ValueError("API key not provided")
+            raise ValueError(f"API key not provided for sampler {sampler_name}. Ensure .env file is configured and contains necessary API keys")
 
     @abstractmethod
     def _initialize_client(self):
@@ -144,6 +144,7 @@ class BaseSDKSampler(BaseSampler):
                 "FAILED",
                 "FAILED",
             )
+            # TODO: Remove
             breakpoint()
             logging.exception(e)
 

@@ -1,68 +1,59 @@
-import os
+"""Run evals using the Exa SDK"""
 from typing import Any, Dict
 
-from evals.samplers.base_samplers.base_sampler import BaseSampler
+from exa_py import Exa
+
+from evals.samplers.base_samplers.base_sdk_sampler import BaseSDKSampler
 
 
-class ExaSampler(BaseSampler):
-
-    @property
-    def needs_synthesis(self) -> bool:
-        return True  # Search provider, needs answer synthesis
-
+class ExaSampler(BaseSDKSampler):
     def __init__(
         self,
         sampler_name: str,
-        max_retries: int = 3,
+        api_key: str = None,
         timeout: float = 60.0,
+        max_retries: int = 3,
         num_results: int = 5,
+        max_concurrency: int = 10,
+        needs_synthesis: bool = True,
         custom_args: Dict[str, Any] | None = None,
     ):
         super().__init__(
-            sampler_name,
-            os.getenv("EXA_API_KEY"),
-            max_retries,
-            timeout,
-            num_results,
-            custom_args,
+            sampler_name=sampler_name,
+            api_key=api_key,
+            max_retries=max_retries,
+            timeout=timeout,
+            num_results=num_results,
+            max_concurrency=max_concurrency,
+            needs_synthesis=needs_synthesis,
+            custom_args=custom_args,
         )
 
-    @staticmethod
-    def _get_base_url():
-        return "https://api.exa.ai"
+    def _initialize_client(self):
+        self.client = Exa(self.api_key)
 
-    def _get_headers(self) -> Dict[str, str]:
-        return {"x-api-key": self.api_key}
+    def _get_search_results_impl(self, query: str) -> Any:
+        if self.custom_args and self.custom_args["text"]:
+            return self.client.search(
+                query=query,
+                num_results=5,
+                contents={
+                    "text": True
+                }
+            )
 
-    def _get_payload(
-        self, query: str, custom_args: Dict[str, Any] | None = None
-    ) -> Dict[str, Any]:
-        payload = {
-            "query": query,
-            "numResults": self.num_results,
-            "contents": {"highlights": True},
-        }
-        if custom_args and "type_" in custom_args and custom_args["type_"] is not None:
-            payload["type"] = custom_args["type_"]
+        raise ValueError("Unknown configuration for Exa")
 
-        return payload
-
-    @staticmethod
-    def _get_endpoint() -> str:
-        return "search/"
-
-    @staticmethod
-    def _get_method() -> str:
-        return "POST"
-
-    @staticmethod
-    def __format_context__(results: Any) -> str:
+    def format_results(self, results: Any) -> str:
         formatted_results = []
-        if "results" in results:
-            for result in results["results"]:
-                if isinstance(result, dict):
-                    title = result.get("title", "")
-                    url = result.get("url", "")
-                    highlights = result.get("highlights", "")
-                    formatted_results.append(f"[{title}]({url})\n{highlights}\n")
+        raw_results = getattr(results, "results", None)
+
+        for result in raw_results:
+            if isinstance(result, dict):
+                title = getattr(result, "title", "")
+                url = getattr(result, "url", "")
+                text = getattr(result, "text", "")
+                if text:
+                    formatted_results.append(f"[{title}]({url})\ntext: \"{text}\"\n")
+
         return "\n---\n".join(formatted_results)
