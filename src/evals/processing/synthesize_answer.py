@@ -14,7 +14,7 @@ from typing import List, Dict, Any
 
 import httpx
 
-from simpleqa import constants
+from evals import constants
 
 
 @dataclass

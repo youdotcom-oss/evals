@@ -1,10 +1,10 @@
 import os
 from typing import Any, Dict
 
-from simpleqa.sampler.base_sampler import BaseSampler
+from evals.samplers.base_samplers.base_sampler import BaseSampler
 
 
-class YouSampler(BaseSampler):
+class ExaSampler(BaseSampler):
 
     @property
     def needs_synthesis(self) -> bool:
@@ -20,7 +20,7 @@ class YouSampler(BaseSampler):
     ):
         super().__init__(
             sampler_name,
-            os.getenv("YOU_API_KEY"),
+            os.getenv("EXA_API_KEY"),
             max_retries,
             timeout,
             num_results,
@@ -29,40 +29,40 @@ class YouSampler(BaseSampler):
 
     @staticmethod
     def _get_base_url():
-        return "https://api.ydc-index.io"
+        return "https://api.exa.ai"
 
     def _get_headers(self) -> Dict[str, str]:
         return {"x-api-key": self.api_key}
 
-    @staticmethod
-    def _get_endpoint() -> str:
-        return "v1/search/"
-
-    @staticmethod
-    def _get_method() -> str:
-        return "GET"
-
     def _get_payload(
         self, query: str, custom_args: Dict[str, Any] | None = None
     ) -> Dict[str, Any]:
-        return {
+        payload = {
             "query": query,
-            "num_web_results": self.num_results,
+            "numResults": self.num_results,
+            "contents": {"highlights": True},
         }
+        if custom_args and "type_" in custom_args and custom_args["type_"] is not None:
+            payload["type"] = custom_args["type_"]
+
+        return payload
+
+    @staticmethod
+    def _get_endpoint() -> str:
+        return "search/"
+
+    @staticmethod
+    def _get_method() -> str:
+        return "POST"
 
     @staticmethod
     def __format_context__(results: Any) -> str:
         formatted_results = []
         if "results" in results:
-            for result in results['results']['web']:
+            for result in results["results"]:
                 if isinstance(result, dict):
                     title = result.get("title", "")
                     url = result.get("url", "")
-                    description = result.get("description", "")
-                    snippet = result.get("snippets", "")
-                    if snippet and isinstance(snippet, list):
-                        snippet = " ".join(snippet)
-                    formatted_results.append(
-                        f"[{title}]({url})\n snippet: {snippet}\n description: {description}"
-                    )
+                    highlights = result.get("highlights", "")
+                    formatted_results.append(f"[{title}]({url})\n{highlights}\n")
         return "\n---\n".join(formatted_results)

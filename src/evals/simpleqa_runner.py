@@ -15,10 +15,10 @@ from typing import Any, Dict
 import pandas as pd
 from tqdm import tqdm
 
-from simpleqa.sampler.exa_sampler import ExaSampler
-from simpleqa.sampler.serp_api_google_sampler import SerpApiGoogleSampler
-from simpleqa.sampler.tavily_sampler import TavilySampler
-from simpleqa.sampler.you_sampler import YouSampler
+from evals.samplers.applied_samplers.exa_sampler import ExaSampler
+from evals.samplers.applied_samplers.serp_api_google_sampler import SerpApiGoogleSampler
+from evals.samplers.applied_samplers.tavily_sampler import TavilySampler
+from evals.samplers.applied_samplers.you_sampler import YouSampler
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -27,27 +27,31 @@ logger = logging.getLogger(__name__)
 
 
 def get_sampler_filepath(sampler_name):
-    return Path(os.getcwd(), f"src/simpleqa/results/raw_results_{sampler_name}.csv")
+    return Path(os.getcwd(), f"src/evals/results/raw_results_{sampler_name}.csv")
 
 
 def get_samplers(args: argparse.Namespace):
     """Initialize requested samplers"""
     samplers = {
-        "you": YouSampler(sampler_name="you", num_results=args.num_results),
-        "tavily": TavilySampler(sampler_name="tavily", num_results=args.num_results),
-        "google": SerpApiGoogleSampler(
-            sampler_name="google", num_results=args.num_results
-        ),
-        "exa": ExaSampler(
-            sampler_name="exa_highlights",
+        "you_unified_search": YouSampler(
+            sampler_name="you_unified_search",
             num_results=args.num_results,
-            custom_args={"type_": None},
+            api_key=os.getenv("YOU_API_KEY"),
         ),
-        "exa_fast": ExaSampler(
-            sampler_name="exa_highlights_fast",
-            num_results=args.num_results,
-            custom_args={"type_": "fast"},
-        ),
+        # "tavily": TavilySampler(sampler_name="tavily", num_results=args.num_results),
+        # "google": SerpApiGoogleSampler(
+        #     sampler_name="google", num_results=args.num_results
+        # ),
+        # "exa": ExaSampler(
+        #     sampler_name="exa_highlights",
+        #     num_results=args.num_results,
+        #     custom_args={"type_": None},
+        # ),
+        # "exa_fast": ExaSampler(
+        #     sampler_name="exa_highlights_fast",
+        #     num_results=args.num_results,
+        #     custom_args={"type_": "fast"},
+        # ),
     }
 
     sampler_list = []
@@ -63,7 +67,7 @@ def get_samplers(args: argparse.Namespace):
 
 
 def clean_results_folder():
-    results_folder_path = Path(os.getcwd(), "src/simpleqa/results")
+    results_folder_path = Path(os.getcwd(), "src/evals/results")
     if os.path.isdir(results_folder_path):
         shutil.rmtree(results_folder_path)
 
@@ -71,7 +75,7 @@ def clean_results_folder():
 def get_remaining_problems(df, sampler_name):
     """In case of failure, only run problems from the dataset that have not been run yet"""
     sampler_results_filepath = get_sampler_filepath(sampler_name)
-    results_folder_path = Path(os.getcwd(), "src/simpleqa/results")
+    results_folder_path = Path(os.getcwd(), "src/evals/results")
     if os.path.isdir(results_folder_path) and os.path.isfile(sampler_results_filepath):
         sampler_results = pd.read_csv(sampler_results_filepath)
         return df[~df["problem"].isin(sampler_results["query"].tolist())]
@@ -127,7 +131,7 @@ async def get_search_results_and_run_evals(
         )
         df = remaining_problems
 
-        # Run SimpleQA problems in batches
+        # Run problems in batches
         with tqdm(
             total=len(df),
             desc=f"Running sampler: {sampler.sampler_name}",
@@ -156,7 +160,7 @@ async def get_search_results_and_run_evals(
                 # Write results of each batch so we can keep progress in case of a failure
                 write_raw_sampler_results(batch_results, sampler.sampler_name)
 
-        await sampler.close()
+        # await sampler.close()
 
 
 def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: str):
@@ -166,8 +170,8 @@ def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: st
     This takes the raw results list, not the full results dictionary in case an individual sampler fails.
     """
     df_sampler_results = pd.DataFrame(sampler_results)
-    if not os.path.isdir("src/simpleqa/results"):
-        os.mkdir("src/simpleqa/results")
+    if not os.path.isdir(Path(os.getcwd(), "src/evals/results")):
+        os.mkdir(Path(os.getcwd(), "src/evals/results"))
 
     sampler_results_filepath = get_sampler_filepath(sampler_name)
     if os.path.isfile(sampler_results_filepath):
@@ -187,7 +191,7 @@ def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: st
 
 def write_metrics():
     """Calculate metrics from raw results such as average score, P50 latency"""
-    results_path = Path(os.getcwd(), "src/simpleqa/results")
+    results_path = Path(os.getcwd(), "src/evals/results")
     files = glob.glob(f"{results_path}/raw_results_*.csv")
     metric_rows = []
     for sampler_results_file in files:
@@ -202,6 +206,9 @@ def write_metrics():
             df_sampler_results[df_sampler_results["evaluation_result"] == "is_correct"]
         )
         count_answered = len(successful_df)
+        if count_answered == 0:
+            breakpoint()
+            raise ValueError("No rows found in raw results file")
         average_score = round((correct / count_answered) * 100, 2)
 
         metric_rows.append(
@@ -213,12 +220,12 @@ def write_metrics():
             }
         )
 
-    write_path = Path(os.getcwd(), "src/simpleqa/results/simpleqa_results.csv")
+    write_path = Path(os.getcwd(), "src/evals/results/simpleqa_results.csv")
     pd.DataFrame(metric_rows).to_csv(write_path, index=False)
 
 
 async def main():
-    available_samplers = ["you", "exa", "exa_fast", "google", "tavily"]
+    available_samplers = ["you_unified_search", "exa", "exa_fast", "google", "tavily"]
     parser = argparse.ArgumentParser(description="Run SimpleQA eval")
     parser.add_argument(
         "--samplers",
@@ -253,7 +260,7 @@ async def main():
     )
     parser.add_argument(
         "--csv-path",
-        default="src/simpleqa/data/simple_qa_test_set.csv",
+        default="src/evals/data/simple_qa_test_set.csv",
         type=str,
         help="Used to define the filepath of the test set",
     )

@@ -1,7 +1,7 @@
 import os
 from typing import Any, Dict
 
-from simpleqa.sampler.base_sampler import BaseSampler
+from evals.samplers.base_samplers.base_sampler import BaseSampler
 
 
 class SerpApiGoogleSampler(BaseSampler):

@@ -12,7 +12,7 @@ from typing import Dict, Any
 
 import httpx
 
-from simpleqa import constants
+from evals import constants
 
 # Prompt is from OpenAI's simple-evals repository https://github.com/openai/simple-evals/blob/ee3b0318d8d1d9d72755a4120879be65f7c07e9e/simpleqa_eval.py#L13
 ANSWER_GRADER_TEMPLATE = """

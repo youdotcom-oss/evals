@@ -1,0 +1,138 @@
+"""Tests for SimpleQA evaluation runner"""
+import argparse
+import asyncio
+import os
+from pathlib import Path
+import shutil
+
+import dotenv
+import pandas as pd
+import pytest
+
+from evals.simpleqa_runner import (
+    get_search_results_and_run_evals,
+    get_sampler_filepath,
+    write_metrics,
+)
+
+
+dotenv.load_dotenv()
+
+
+@pytest.fixture
+def test_results_cleanup():
+    """Cleanup test results before and after test"""
+    results_folder_path = Path(os.getcwd(), "src/evals/results")
+
+    # Clean before test
+    if os.path.isdir(results_folder_path):
+        shutil.rmtree(results_folder_path)
+
+    yield
+
+    # Clean after test
+    if os.path.isdir(results_folder_path):
+        shutil.rmtree(results_folder_path)
+
+
+@pytest.mark.asyncio
+async def test_simpleqa_runner_you_unified_search(test_results_cleanup):
+    """
+    Test running simpleqa_runner with you_unified_search sampler
+    on the simple_qa_n100 dataset.
+
+    This test verifies that:
+    1. The runner can process queries using the you_unified_search sampler
+    2. Results are written to the correct output file
+    3. Results contain expected columns and data
+    4. Metrics are calculated correctly
+    """
+    # Skip test if YOU_API_KEY is not set
+    if not os.getenv("YOU_API_KEY"):
+        pytest.skip("YOU_API_KEY not set - skipping test")
+
+    # Create test arguments
+    num_problems = 10
+    args = argparse.Namespace(
+        samplers=["you_unified_search"],
+        csv_path="data/simple_qa.csv",
+        limit=num_problems,  # Test with small subset for speed
+        batch_size=5,
+        max_concurrent_tasks=5,
+        num_results=5,
+        clean=True,
+    )
+
+    # Run the evaluation
+    await get_search_results_and_run_evals(args)
+
+    # Verify results file was created
+    results_filepath = get_sampler_filepath("you_unified_search")
+    assert os.path.isfile(results_filepath), f"Results file not created at {results_filepath}"
+
+    # Read and verify results
+    df_results = pd.read_csv(results_filepath)
+
+    # Check expected columns exist
+    expected_columns = ["query", "response_time_ms", "evaluation_result"]
+    for col in expected_columns:
+        assert col in df_results.columns, f"Expected column '{col}' not found in results"
+
+    # Verify we got results for the queries
+    assert len(df_results) == num_problems, f"Expected {num_problems} results, got {len(df_results)}"
+
+    # Verify all queries have non-null values
+    assert df_results["query"].notna().all(), "Some queries are null"
+
+    # Write and verify metrics
+    write_metrics()
+    metrics_path = Path(os.getcwd(), "src/evals/results/simpleqa_results.csv")
+    assert os.path.isfile(metrics_path), "Metrics file not created"
+
+    df_metrics = pd.read_csv(metrics_path)
+    assert len(df_metrics) == 1, "Expected 1 sampler in metrics"
+    assert df_metrics.iloc[0]["provider"] == "you_unified_search"
+    assert "average_score" in df_metrics.columns
+    assert "p50_latency" in df_metrics.columns
+    assert "problem_count" in df_metrics.columns
+
+
+@pytest.mark.asyncio
+async def test_simpleqa_runner_resume_capability(test_results_cleanup):
+    """
+    Test that the runner can resume from partial results.
+
+    This test verifies that if a run is interrupted, it can continue
+    from where it left off without re-processing completed queries.
+    """
+    # Skip test if YOU_API_KEY is not set
+    if not os.getenv("YOU_API_KEY"):
+        pytest.skip("YOU_API_KEY not set - skipping test")
+
+    num_problems = 10
+    # Create test arguments for first run (partial)
+    args = argparse.Namespace(
+        samplers=["you_unified_search"],
+        csv_path="data/simple_qa.csv",
+        limit=num_problems,
+        batch_size=5,
+        max_concurrent_tasks=5,
+        num_results=5,
+        clean=True,
+    )
+
+    # First run
+    await get_search_results_and_run_evals(args)
+    results_filepath = get_sampler_filepath("you_unified_search")
+    df_first = pd.read_csv(results_filepath)
+    first_run_count = len(df_first)
+    assert first_run_count == num_problems, f"Expected {num_problems} results from first run, got {first_run_count}"
+
+    # Second run with more queries (should add new results)
+    args.limit = 5
+    args.clean = False  # Don't clean, resume from existing
+    await get_search_results_and_run_evals(args)
+
+    df_second = pd.read_csv(results_filepath)
+    second_run_count = len(df_second)
+    assert second_run_count == num_problems + args.limit, f"Expected {num_problems} total results after second run, got {second_run_count}"

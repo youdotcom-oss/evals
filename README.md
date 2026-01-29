@@ -12,19 +12,16 @@ If you would like to reproduce the numbers or add new samplers, follow the instr
    cd evals
    ```
 
-2. Install the required dependencies:
+2. Create a virtual environment with the tool of your choice, then install the required dependencies:
    ```bash
+   # create and activate virtual environment
    pip install -r requirements.txt
    pip install -e .
    ```
 
-3. Set up environment variables as environment variables or an .env file:
+3. Set up your `.env` file and insert the appropriate API keys:
    ```bash
-   export OPENAI_API_KEY=your_openai_api_key
-   export YOU_API_KEY=your_you_api_key
-   export TAVILY_API_KEY=your_you_api_key
-   export EXA_API_KEY=your_you_api_key
-   export SERP_API_KEY=your_you_api_key
+   cp .env.example .env
    ```
 
 ## Running a SimpleQA evaluation
