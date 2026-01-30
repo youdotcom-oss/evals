@@ -105,14 +105,6 @@ class BaseSampler(ABC):
         else:
             query = str(query_input)
 
-        # if self.custom_args:
-        #     payload = self._get_payload(query=query, custom_args=self.custom_args)
-        # else:
-        #     payload = self._get_payload(query=query)
-        #
-        # method = self._get_method()
-        # endpoint = self._get_endpoint()
-
         # Get raw results
         try:
             # Run synchronous SDK call in thread pool
