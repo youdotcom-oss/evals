@@ -1,17 +1,13 @@
 from abc import abstractmethod
-import asyncio
-import logging
-import sys
-import time
-import traceback
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict
+
+import requests
 
 from evals.samplers.base_samplers.base_sampler import BaseSampler
 
 
-class BaseSDKSampler(BaseSampler):
-    """Base class for SDK-based samplers that use provider SDKs"""
+class BaseAPISampler(BaseSampler):
+    """Base class for API-based samplers that make HTTP requests"""
 
     def __init__(
         self,
@@ -21,7 +17,7 @@ class BaseSDKSampler(BaseSampler):
         max_retries: int = 3,
         max_concurrency: int = 10,
         needs_synthesis: bool = True,
-        custom_args=None,
+        custom_args: Dict[str, Any] | None = None,
     ):
         super().__init__(
             sampler_name=sampler_name,
@@ -32,82 +28,75 @@ class BaseSDKSampler(BaseSampler):
             needs_synthesis=needs_synthesis,
             custom_args=custom_args,
         )
-        self.client = None
-        if self.api_key:
-            self._initialize_client()
-        else:
-            raise ValueError(f"API key not provided for sampler {sampler_name}. Ensure .env file is configured and contains necessary API keys")
 
+    def _set_params(self):
+        """Set API parameters before making a request"""
+        self.base_url = self._get_base_url()
+        self.method = self._get_method()
+        self.headers = self._get_headers()
+        self.endpoint = self._get_endpoint()
+
+    @staticmethod
     @abstractmethod
-    def _initialize_client(self):
-        """
-        Initialize the SDK client with the API key.
-
-        Returns:
-            Initialized SDK client instance
-        """
+    def _get_base_url() -> str:
+        """Get provider specific base url"""
         pass
 
     @abstractmethod
-    def _get_search_results_impl(self, query: str) -> Any:
-        """
-        Implementation of getting raw search results using the SDK client.
-        This method should be implemented by derived classes.
+    def _get_headers(self) -> Dict[str, str]:
+        """Get provider specific headers"""
+        pass
 
-        Args:
-            query: The search query string
+    @abstractmethod
+    def _get_payload(self, query: str) -> Dict[str, Any]:
+        """Get provider specific request payload"""
+        pass
 
-        Returns:
-            Raw search results in provider-specific format
-        """
+    @staticmethod
+    @abstractmethod
+    def _get_endpoint() -> str:
+        """Get provider specific API endpoint"""
+        pass
+
+    @staticmethod
+    @abstractmethod
+    def _get_method() -> str:
+        """Get provider specific HTTP method"""
         pass
 
     def get_search_results(self, query: str) -> Any:
-        """
-        Get raw search results using the SDK client.
-        This method wraps _get_search_results_impl with error handling and timeout.
-
-        Args:
-            query: The search query string
-
-        Returns:
-            Raw search results in provider-specific format
-
-        Raises:
-            TimeoutError: If the search operation exceeds the timeout
-            Exception: Re-raises any exception encountered during search
-        """
+        """Get raw search results from the API"""
         try:
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(self._get_search_results_impl, query)
-                return future.result(timeout=self.timeout)
-        except TimeoutError:
-            error_msg = f"{self.sampler_name} timed out after {self.timeout} seconds"
-            logging.error(error_msg)
-            raise TimeoutError(error_msg)
+            self._set_params()
+            payload = self._get_payload(query)
+
+            if self.method == "POST":
+                response = requests.post(
+                    self.base_url + self.endpoint,
+                    json=payload,
+                    headers=self.headers,
+                    timeout=self.timeout,
+                )
+            elif self.method == "GET":
+                response = requests.get(
+                    self.base_url + self.endpoint,
+                    params=payload,
+                    headers=self.headers,
+                    timeout=self.timeout,
+                )
+            else:
+                raise ValueError(
+                    'Unsupported method, please select between ["POST", "GET"]'
+                )
+
+            response.raise_for_status()
+            data = response.json()
+
+            return data
         except Exception as e:
-            logging.error(f"{self.sampler_name} failed with error {e}")
+            print(f"{self.sampler_name} failed with error {e}")
             raise e
 
-    async def _retry_with_backoff_async(self, func, *args, **kwargs):
-        """Generic async retry logic with exponential backoff"""
-        trial = 0
-        while True:
-            try:
-                return await func(*args, **kwargs)
-            except Exception as e:
-                _, _, traceback_ = sys.exc_info()
-                if trial >= self.max_retries:
-                    logging.error(f"Failed after {self.max_retries} retries: {str(e)}")
-                    raise
-
-                trial += 1
-                backoff_time = 2**trial
-                logging.warning(
-                    f"Attempt {trial}/{self.max_retries} failed: {traceback.print_tb(traceback_)}. Retrying in {backoff_time}s..."
-                )
-                await asyncio.sleep(backoff_time)
-    #
     # async def __call__(
     #         self, query_input, ground_truth: str = "", overwrite: bool = False
     # ) -> Dict[str, Any]:
@@ -117,14 +106,6 @@ class BaseSDKSampler(BaseSampler):
     #         query = self.__extract_query_from_messages__(query_input)
     #     else:
     #         query = str(query_input)
-    #
-    #     # if self.custom_args:
-    #     #     payload = self._get_payload(query=query, custom_args=self.custom_args)
-    #     # else:
-    #     #     payload = self._get_payload(query=query)
-    #     #
-    #     # method = self._get_method()
-    #     # endpoint = self._get_endpoint()
     #
     #     # Get raw results
     #     try:

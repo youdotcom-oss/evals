@@ -15,6 +15,10 @@ SAMPLERS = [
         api_key=os.getenv("EXA_API_KEY"),
         custom_args={"text": True},
     ),
+    SerpApiGoogleSampler(
+        sampler_name="serp_google",
+        api_key=os.getenv("SERP_API_KEY"),
+    ),
     TavilySampler(
         sampler_name="tavily_basic",
         api_key=os.getenv("TAVILY_API_KEY"),
@@ -25,7 +29,4 @@ SAMPLERS = [
         api_key=os.getenv("TAVILY_API_KEY"),
         custom_args={"search_depth": "advanced"},
     ),
-    # SerpApiGoogleSampler(
-    #         sampler_name="google", num_results=args.num_results
-    #     ),
 ]

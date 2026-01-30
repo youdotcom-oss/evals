@@ -170,6 +170,7 @@ def write_metrics():
             df_sampler_results["response_time_ms"] != "FAILED"
         ]
 
+        # TODO: Mean or median?
         p50_latency = pd.to_numeric(successful_df["response_time_ms"]).median()
         correct = len(
             df_sampler_results[df_sampler_results["evaluation_result"] == "is_correct"]

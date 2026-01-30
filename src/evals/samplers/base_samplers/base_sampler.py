@@ -1,4 +1,7 @@
 from abc import ABC, abstractmethod
+import asyncio
+import logging
+import time
 from typing import Any, Dict
 
 import httpx
@@ -15,7 +18,6 @@ class BaseSampler(ABC):
         api_key: str = None,
         timeout: float = 60.0,
         max_retries: int = 3,
-        num_results: int = 5,
         max_concurrency: int = 10,
         needs_synthesis: bool = True,
         custom_args=None,
@@ -92,3 +94,78 @@ class BaseSampler(ABC):
 
         evaluator = AnswerGrader()
         return await evaluator.evaluate_single(query, ground_truth, generated_answer)
+
+    async def __call__(
+            self, query_input, ground_truth: str = "", overwrite: bool = False
+    ) -> Dict[str, Any]:
+        """Main execution pipeline"""
+
+        if isinstance(query_input, list):
+            query = self.__extract_query_from_messages__(query_input)
+        else:
+            query = str(query_input)
+
+        # if self.custom_args:
+        #     payload = self._get_payload(query=query, custom_args=self.custom_args)
+        # else:
+        #     payload = self._get_payload(query=query)
+        #
+        # method = self._get_method()
+        # endpoint = self._get_endpoint()
+
+        # Get raw results
+        try:
+            # Run synchronous SDK call in thread pool
+            start_time = time.time()
+            raw_results = await asyncio.to_thread(
+                self.get_search_results,
+                query
+            )
+            response_time_no_retries = (time.time() - start_time) * 1000  # Convert to ms
+            formatted_results = self.format_results(raw_results)
+        except Exception as e:
+            raw_results, response_time_no_retries, formatted_results = (
+                "FAILED",
+                "FAILED",
+                "FAILED",
+            )
+            # TODO: Remove
+            breakpoint()
+            logging.exception(e)
+
+        # Synthesize raw results
+        try:
+            if self.needs_synthesis:
+                generated_answer = await self.__synthesize_response(
+                    query, formatted_results
+                )
+            else:
+                generated_answer = formatted_results  # Already synthesized by API
+        except Exception as e:
+            generated_answer = "FAILED"
+            logging.exception(e)
+
+        # Evaluated synthesized results against ground truth
+        try:
+            if ground_truth:
+                evaluation_result_dict = await self.__evaluate_response(
+                    query, ground_truth, generated_answer
+                )
+                evaluation_result = evaluation_result_dict["score_name"]
+            else:
+                raise ValueError("Ground truth is missing")
+        except Exception as e:
+            evaluation_result = "FAILED"
+            logging.exception(e)
+
+        # Format result
+        result = {
+            "query": query,
+            "response_time_ms": response_time_no_retries,
+            "evaluation_result": evaluation_result,
+            "generated_answer": generated_answer,
+            "ground_truth": ground_truth,
+            "raw_results": raw_results,
+            "formatted_results": formatted_results,
+        }
+        return result

@@ -50,7 +50,7 @@ async def test_simpleqa_runner(test_results_cleanup):
     # Create test arguments
     num_problems = 10
     args = argparse.Namespace(
-        samplers=["you_unified_search", "exa_search_with_contents", "tavily_basic", "tavily_advanced"],
+        samplers=["you_unified_search", "exa_search_with_contents", "tavily_basic", "tavily_advanced", "serp_google"],
         csv_path="data/simple_qa.csv",
         limit=num_problems,  # Test with small subset for speed
         batch_size=5,
