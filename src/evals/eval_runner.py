@@ -5,7 +5,6 @@ Available samplers can be found in get_samplers() or in the `sampler/` folder
 
 import argparse
 import asyncio
-import glob
 import logging
 import os
 from pathlib import Path
@@ -16,6 +15,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from evals.configs import samplers
+from evals.eval_results_analyzer import write_metrics
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -62,7 +62,7 @@ async def process_query_with_semaphore(semaphore, sampler, target_query, target_
             return e
 
 
-async def get_search_results_and_run_evals(
+async def run_evals(
     args: argparse.Namespace,
 ):
     """
@@ -144,40 +144,6 @@ def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: st
         )
 
 
-def write_metrics():
-    """Calculate metrics from raw results such as average score, P50 latency"""
-    results_path = Path(os.getcwd(), "src/evals/results")
-    files = glob.glob(f"{results_path}/raw_results_*.csv")
-    metric_rows = []
-    for sampler_results_file in files:
-        sampler_name = sampler_results_file.split("raw_results_")[-1].split(".")[0]
-        df_sampler_results = pd.read_csv(sampler_results_file)
-        successful_df = df_sampler_results[df_sampler_results["response_time_ms"] != "FAILED"]
-
-        p50_latency = pd.to_numeric(successful_df["response_time_ms"]).median()
-        avg_latency = pd.to_numeric(successful_df["response_time_ms"]).mean()
-        correct = len(df_sampler_results[df_sampler_results["evaluation_result"] == "is_correct"])
-        count_answered = len(successful_df)
-        if count_answered == 0:
-            breakpoint()
-            raise ValueError("No rows found in raw results file")
-        accuracy_score = round((correct / count_answered) * 100, 2)
-
-        metric_rows.append({
-            "provider": sampler_name,
-            "accuracy_score": accuracy_score,
-            "p50_latency": round(float(p50_latency), 2),
-            "avg_latency": round(float(avg_latency), 2),
-            "problem_count": count_answered,
-        })
-
-    write_path = Path(os.getcwd(), "src/evals/results/simpleqa_results.csv")
-    metric_df = pd.DataFrame(metric_rows)
-    metric_df.to_csv(write_path, index=False)
-    print(f"Results were written to {write_path}")
-    print(metric_df)
-
-
 async def main():
     available_samplers = ["you_unified_search", "exa", "exa_fast", "google", "tavily"]
     parser = argparse.ArgumentParser(description="Run SimpleQA eval")
@@ -227,7 +193,7 @@ async def main():
 
     args = parser.parse_args()
 
-    await get_search_results_and_run_evals(args)
+    await run_evals(args)
     write_metrics()
 
 
