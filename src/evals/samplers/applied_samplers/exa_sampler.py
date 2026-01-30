@@ -47,11 +47,10 @@ class ExaSampler(BaseSDKSampler):
         raw_results = getattr(results, "results", None)
 
         for result in raw_results:
-            if isinstance(result, dict):
-                title = getattr(result, "title", "")
-                url = getattr(result, "url", "")
-                text = getattr(result, "text", "")
-                if text:
-                    formatted_results.append(f"[{title}]({url})\ntext: \"{text}\"\n")
+            title = getattr(result, "title", "")
+            url = getattr(result, "url", "")
+            text = getattr(result, "text", "")
+            if text:
+                formatted_results.append(f"[{title}]({url})\ntext: \"{text}\"\n")
 
         return "\n---\n".join(formatted_results)

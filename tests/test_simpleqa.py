@@ -9,7 +9,7 @@ import dotenv
 import pandas as pd
 import pytest
 
-from evals.simpleqa_runner import (
+from evals.eval_runner import (
     get_search_results_and_run_evals,
     get_sampler_filepath,
     write_metrics,

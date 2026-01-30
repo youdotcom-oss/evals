@@ -45,9 +45,9 @@ class TavilySampler(BaseSDKSampler):
 
         for result in raw_results:
             if isinstance(result, dict):
-                title = getattr(result, "title", "")
-                url = getattr(result, "url", "")
-                content = getattr(result, "content", "")
+                title = result.get("title", "")
+                url = result.get("url", "")
+                content = result.get("content", "")
                 if content:
                     formatted_results.append(f"[{title}]({url})\ncontent: {content}\n")
 

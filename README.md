@@ -29,17 +29,17 @@ To run a SimpleQA evaluation, simply run the `simpleqa_runner.py` file with your
 
 View available arguments and samplers
    ```bash
-   python src/simpleqa/simpleqa_runner.py --help
+   python src/evals/eval_runner.py --help
    ```
 
 Run the SimpleQA evaluation on the entire problem set for all available samplers with default settings
    ```bash
-   python src/simpleqa/simpleqa_runner.py
+   python src/evals/eval_runner.py
    ```
 
 Run the SimpleQA evaluation on just You.com for 5 random problems
    ```bash
-   python src/simpleqa/simpleqa_runner.py --samplers you --limit 5
+   python src/evals/eval_runner.py --samplers you_unified_search --limit 5
    ```
 
 ## Interpreting Results 

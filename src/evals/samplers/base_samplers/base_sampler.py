@@ -121,8 +121,6 @@ class BaseSampler(ABC):
                 "FAILED",
                 "FAILED",
             )
-            # TODO: Remove
-            breakpoint()
             logging.exception(e)
 
         # Synthesize raw results

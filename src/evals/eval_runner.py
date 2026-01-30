@@ -10,16 +10,20 @@ import logging
 import os
 from pathlib import Path
 import shutil
-from typing import Any, Dict
+from typing import Any
 
 import pandas as pd
 from tqdm import tqdm
 
 from evals.configs import samplers
 
+
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
+# Mute noisy HTTP client logs
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
@@ -170,8 +174,8 @@ def write_metrics():
             df_sampler_results["response_time_ms"] != "FAILED"
         ]
 
-        # TODO: Mean or median?
         p50_latency = pd.to_numeric(successful_df["response_time_ms"]).median()
+        avg_latency = pd.to_numeric(successful_df["response_time_ms"]).mean()
         correct = len(
             df_sampler_results[df_sampler_results["evaluation_result"] == "is_correct"]
         )
@@ -179,19 +183,23 @@ def write_metrics():
         if count_answered == 0:
             breakpoint()
             raise ValueError("No rows found in raw results file")
-        average_score = round((correct / count_answered) * 100, 2)
+        accuracy_score = round((correct / count_answered) * 100, 2)
 
         metric_rows.append(
             {
                 "provider": sampler_name,
-                "average_score": average_score,
-                "p50_latency": p50_latency,
+                "accuracy_score": accuracy_score,
+                "p50_latency": round(float(p50_latency), 2),
+                "avg_latency": round(float(avg_latency), 2),
                 "problem_count": count_answered,
             }
         )
 
     write_path = Path(os.getcwd(), "src/evals/results/simpleqa_results.csv")
-    pd.DataFrame(metric_rows).to_csv(write_path, index=False)
+    metric_df = pd.DataFrame(metric_rows)
+    metric_df.to_csv(write_path, index=False)
+    print(f"Results were written to {write_path}")
+    print(metric_df)
 
 
 async def main():
@@ -230,7 +238,7 @@ async def main():
     )
     parser.add_argument(
         "--csv-path",
-        default="src/evals/data/simple_qa_test_set.csv",
+        default="data/simple_qa.csv",
         type=str,
         help="Used to define the filepath of the test set",
     )

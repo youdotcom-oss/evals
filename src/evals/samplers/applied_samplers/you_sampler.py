@@ -40,9 +40,9 @@ class YouSampler(BaseSDKSampler):
         formatted_results = []
         raw_results = []
         if results.results and results.results.web:
-            raw_results.append(results.results.web)
+            raw_results.extend(results.results.web)
         if results.results and results.results.news:
-            raw_results.append(results.results.news)
+            raw_results.extend(results.results.news)
 
         for result in raw_results:
             title = getattr(result, "title", "")
