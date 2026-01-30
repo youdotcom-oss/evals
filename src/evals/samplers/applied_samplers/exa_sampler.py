@@ -1,4 +1,5 @@
 """Run evals using the Exa SDK"""
+
 from typing import Any, Dict
 
 from exa_py import Exa
@@ -32,13 +33,7 @@ class ExaSampler(BaseSDKSampler):
 
     def _get_search_results_impl(self, query: str) -> Any:
         if self.custom_args and self.custom_args["text"]:
-            return self.client.search(
-                query=query,
-                num_results=5,
-                contents={
-                    "text": True
-                }
-            )
+            return self.client.search(query=query, num_results=5, contents={"text": True})
 
         raise ValueError("Unknown configuration for Exa")
 
@@ -51,6 +46,6 @@ class ExaSampler(BaseSDKSampler):
             url = getattr(result, "url", "")
             text = getattr(result, "text", "")
             if text:
-                formatted_results.append(f"[{title}]({url})\ntext: \"{text}\"\n")
+                formatted_results.append(f'[{title}]({url})\ntext: "{text}"\n')
 
         return "\n---\n".join(formatted_results)

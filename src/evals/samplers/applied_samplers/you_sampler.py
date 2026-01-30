@@ -1,4 +1,5 @@
 """Run evals using the you.com Search SDK https://docs.you.com/api-reference/search/v1-search"""
+
 from typing import Any, Dict
 
 from youdotcom import You
@@ -51,7 +52,5 @@ class YouSampler(BaseSDKSampler):
             snippets = getattr(result, "snippets", "")
             if snippets and isinstance(snippets, list):
                 snippets = " ".join(snippets)
-            formatted_results.append(
-                f"[{title}]({url})\n snippets: {snippets}\n description: {description}"
-            )
+            formatted_results.append(f"[{title}]({url})\n snippets: {snippets}\n description: {description}")
         return "\n---\n".join(formatted_results)

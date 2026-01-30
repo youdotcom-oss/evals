@@ -1,4 +1,5 @@
 """Tests for SimpleQA evaluation runner"""
+
 import argparse
 import asyncio
 import os
@@ -129,4 +130,6 @@ async def test_simpleqa_runner_resume_capability(test_results_cleanup):
         results_filepath = get_sampler_filepath(sampler)
         df_second = pd.read_csv(results_filepath)
         second_run_count = len(df_second)
-        assert second_run_count == num_problems + args.limit, f"Expected {num_problems} total results after second run, got {second_run_count}"
+        assert second_run_count == num_problems + args.limit, (
+            f"Expected {num_problems} total results after second run, got {second_run_count}"
+        )

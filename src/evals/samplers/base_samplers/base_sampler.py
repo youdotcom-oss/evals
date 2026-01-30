@@ -73,31 +73,24 @@ class BaseSampler(ABC):
                 return last_message["content"]
         return str(message_list)
 
-
     async def __synthesize_response(self, query: str, formatted_context: str) -> str:
         """
         Private method for synthesizing responses from search results using OpenAI
         """
         answer_synthesizer = SynthesizeAnswer(max_retries=3)
         async with httpx.AsyncClient(timeout=30.0) as client:
-            result = await answer_synthesizer.process_single(
-                client, query, formatted_context
-            )
+            result = await answer_synthesizer.process_single(client, query, formatted_context)
         return result.response_text if result else f"Synthesis failed for: {query}"
 
     @staticmethod
-    async def __evaluate_response(
-        query: str, ground_truth: str, generated_answer: str
-    ) -> Dict[str, Any]:
+    async def __evaluate_response(query: str, ground_truth: str, generated_answer: str) -> Dict[str, Any]:
         """Evaluate the generated response against ground truth"""
         from evals.processing.evaluate_answer import AnswerGrader
 
         evaluator = AnswerGrader()
         return await evaluator.evaluate_single(query, ground_truth, generated_answer)
 
-    async def __call__(
-            self, query_input, ground_truth: str = "", overwrite: bool = False
-    ) -> Dict[str, Any]:
+    async def __call__(self, query_input, ground_truth: str = "", overwrite: bool = False) -> Dict[str, Any]:
         """Main execution pipeline"""
 
         if isinstance(query_input, list):
@@ -109,10 +102,7 @@ class BaseSampler(ABC):
         try:
             # Run synchronous SDK call in thread pool
             start_time = time.time()
-            raw_results = await asyncio.to_thread(
-                self.get_search_results,
-                query
-            )
+            raw_results = await asyncio.to_thread(self.get_search_results, query)
             response_time_no_retries = (time.time() - start_time) * 1000  # Convert to ms
             formatted_results = self.format_results(raw_results)
         except Exception as e:
@@ -126,9 +116,7 @@ class BaseSampler(ABC):
         # Synthesize raw results
         try:
             if self.needs_synthesis:
-                generated_answer = await self.__synthesize_response(
-                    query, formatted_results
-                )
+                generated_answer = await self.__synthesize_response(query, formatted_results)
             else:
                 generated_answer = formatted_results  # Already synthesized by API
         except Exception as e:
@@ -138,9 +126,7 @@ class BaseSampler(ABC):
         # Evaluated synthesized results against ground truth
         try:
             if ground_truth:
-                evaluation_result_dict = await self.__evaluate_response(
-                    query, ground_truth, generated_answer
-                )
+                evaluation_result_dict = await self.__evaluate_response(query, ground_truth, generated_answer)
                 evaluation_result = evaluation_result_dict["score_name"]
             else:
                 raise ValueError("Ground truth is missing")

@@ -18,9 +18,7 @@ from tqdm import tqdm
 from evals.configs import samplers
 
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 # Mute noisy HTTP client logs
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -33,9 +31,7 @@ def get_sampler_filepath(sampler_name):
 
 def get_sampler(sampler_name: str):
     """Initialize requested samplers"""
-    sampler = next(
-        (sampler for sampler in samplers.SAMPLERS if sampler.sampler_name == sampler_name), None
-    )
+    sampler = next((sampler for sampler in samplers.SAMPLERS if sampler.sampler_name == sampler_name), None)
     if sampler is None:
         raise ValueError(f"Sampler '{sampler_name}' not found")
     return sampler
@@ -57,16 +53,12 @@ def get_remaining_problems(df, sampler_name):
     return df
 
 
-async def process_query_with_semaphore(
-    semaphore, sampler, target_query, target_ground_truth
-):
+async def process_query_with_semaphore(semaphore, sampler, target_query, target_ground_truth):
     async with semaphore:
         try:
             return await sampler(target_query, ground_truth=target_ground_truth)
         except Exception as e:
-            logging.error(
-                f"Failed to run {sampler.sampler_name} for query: {target_query}"
-            )
+            logging.error(f"Failed to run {sampler.sampler_name} for query: {target_query}")
             return e
 
 
@@ -93,17 +85,11 @@ async def get_search_results_and_run_evals(
         # Only run on problems that are not already in results folder
         remaining_problems = get_remaining_problems(df, sampler.sampler_name)
         if len(remaining_problems) == 0:
-            logging.info(
-                f"No problems remaining for sampler {sampler.sampler_name}, moving on..."
-            )
-            results[sampler.sampler_name] = pd.read_csv(
-                get_sampler_filepath(sampler.sampler_name)
-            )
+            logging.info(f"No problems remaining for sampler {sampler.sampler_name}, moving on...")
+            results[sampler.sampler_name] = pd.read_csv(get_sampler_filepath(sampler.sampler_name))
             continue
 
-        logging.info(
-            f"Running sampler {sampler.sampler_name} on {len(remaining_problems)} problems"
-        )
+        logging.info(f"Running sampler {sampler.sampler_name} on {len(remaining_problems)} problems")
         df = remaining_problems
 
         # Run problems in batches
@@ -121,11 +107,7 @@ async def get_search_results_and_run_evals(
                 for _, row in batch_df.iterrows():
                     query = row["problem"]
                     ground_truth = row["answer"]
-                    task = asyncio.create_task(
-                        process_query_with_semaphore(
-                            semaphore, sampler, query, ground_truth
-                        )
-                    )
+                    task = asyncio.create_task(process_query_with_semaphore(semaphore, sampler, query, ground_truth))
                     tasks.append(task)
 
                 batch_results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -170,30 +152,24 @@ def write_metrics():
     for sampler_results_file in files:
         sampler_name = sampler_results_file.split("raw_results_")[-1].split(".")[0]
         df_sampler_results = pd.read_csv(sampler_results_file)
-        successful_df = df_sampler_results[
-            df_sampler_results["response_time_ms"] != "FAILED"
-        ]
+        successful_df = df_sampler_results[df_sampler_results["response_time_ms"] != "FAILED"]
 
         p50_latency = pd.to_numeric(successful_df["response_time_ms"]).median()
         avg_latency = pd.to_numeric(successful_df["response_time_ms"]).mean()
-        correct = len(
-            df_sampler_results[df_sampler_results["evaluation_result"] == "is_correct"]
-        )
+        correct = len(df_sampler_results[df_sampler_results["evaluation_result"] == "is_correct"])
         count_answered = len(successful_df)
         if count_answered == 0:
             breakpoint()
             raise ValueError("No rows found in raw results file")
         accuracy_score = round((correct / count_answered) * 100, 2)
 
-        metric_rows.append(
-            {
-                "provider": sampler_name,
-                "accuracy_score": accuracy_score,
-                "p50_latency": round(float(p50_latency), 2),
-                "avg_latency": round(float(avg_latency), 2),
-                "problem_count": count_answered,
-            }
-        )
+        metric_rows.append({
+            "provider": sampler_name,
+            "accuracy_score": accuracy_score,
+            "p50_latency": round(float(p50_latency), 2),
+            "avg_latency": round(float(avg_latency), 2),
+            "problem_count": count_answered,
+        })
 
     write_path = Path(os.getcwd(), "src/evals/results/simpleqa_results.csv")
     metric_df = pd.DataFrame(metric_rows)

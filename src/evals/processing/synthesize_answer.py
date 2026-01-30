@@ -35,9 +35,7 @@ class SynthesizeAnswer:
             "Content-Type": "application/json",
         }
 
-    async def process_single(
-        self, session: httpx.AsyncClient, query: str, snippets: str
-    ) -> SynthesizeAnswerResponse:
+    async def process_single(self, session: httpx.AsyncClient, query: str, snippets: str) -> SynthesizeAnswerResponse:
         """Synthesize a single response asynchronously"""
         for trial in range(self.max_retries + 1):
             try:

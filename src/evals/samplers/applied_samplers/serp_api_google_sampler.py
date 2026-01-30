@@ -5,7 +5,6 @@ from evals.samplers.base_samplers.base_api_sampler import BaseAPISampler
 
 
 class SerpApiGoogleSampler(BaseAPISampler):
-
     def __init__(
         self,
         sampler_name: str,
@@ -41,9 +40,7 @@ class SerpApiGoogleSampler(BaseAPISampler):
     def _get_headers(self) -> Dict[str, str]:
         return {}
 
-    def _get_payload(
-        self, query: str, custom_args: Dict[str, Any] | None = None
-    ) -> Dict[str, Any]:
+    def _get_payload(self, query: str, custom_args: Dict[str, Any] | None = None) -> Dict[str, Any]:
         return {
             "q": query,
             "engine": "google",

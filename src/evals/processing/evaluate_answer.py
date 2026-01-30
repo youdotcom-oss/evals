@@ -133,9 +133,7 @@ class AnswerGrader:
                         raise ValueError("OpenAI API returned empty response")
                     return content
                 else:
-                    raise Exception(
-                        f"API error {response.status_code}: {response.text}"
-                    )
+                    raise Exception(f"API error {response.status_code}: {response.text}")
 
             except Exception as e:
                 if trial >= self.max_retries:
@@ -148,9 +146,7 @@ class AnswerGrader:
 
         raise ValueError("Failed to call OpenAI API")
 
-    async def evaluate_single(
-        self, question: str, target: str, predicted_answer: str
-    ) -> Dict[str, Any]:
+    async def evaluate_single(self, question: str, target: str, predicted_answer: str) -> Dict[str, Any]:
         """Evaluate a single response asynchronously"""
         grader_prompt = ANSWER_GRADER_TEMPLATE.format(
             question=question,
@@ -166,9 +162,7 @@ class AnswerGrader:
         grade_letter = match.group(0) if match else "C"
 
         # Convert to readable format
-        score_name = {"A": "is_correct", "B": "is_incorrect", "C": "is_not_attempted"}[
-            grade_letter
-        ]
+        score_name = {"A": "is_correct", "B": "is_incorrect", "C": "is_not_attempted"}[grade_letter]
 
         is_correct = grade_letter == "A"
         is_incorrect = grade_letter == "B"

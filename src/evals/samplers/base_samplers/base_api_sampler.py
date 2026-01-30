@@ -85,9 +85,7 @@ class BaseAPISampler(BaseSampler):
                     timeout=self.timeout,
                 )
             else:
-                raise ValueError(
-                    'Unsupported method, please select between ["POST", "GET"]'
-                )
+                raise ValueError('Unsupported method, please select between ["POST", "GET"]')
 
             response.raise_for_status()
             data = response.json()
