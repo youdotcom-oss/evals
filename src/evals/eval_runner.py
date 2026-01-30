@@ -15,7 +15,7 @@ import pandas as pd
 from tqdm import tqdm
 
 from evals.configs import samplers
-from evals.eval_results_analyzer import write_metrics
+from evals.eval_results_analyzer import write_metrics, get_default_results_dir
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
@@ -25,8 +25,11 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
-def get_sampler_filepath(sampler_name):
-    return Path(os.getcwd(), f"src/evals/results/raw_results_{sampler_name}.csv")
+def get_sampler_filepath(sampler_name: str, results_dir: Path = None) -> Path:
+    """Get the filepath for a sampler's results file."""
+    if results_dir is None:
+        results_dir = get_default_results_dir()
+    return results_dir / f"raw_results_{sampler_name}.csv"
 
 
 def get_sampler(sampler_name: str):
@@ -37,17 +40,20 @@ def get_sampler(sampler_name: str):
     return sampler
 
 
-def clean_results_folder():
-    results_folder_path = Path(os.getcwd(), "src/evals/results")
-    if os.path.isdir(results_folder_path):
-        shutil.rmtree(results_folder_path)
+def clean_results_folder(results_dir: Path = None):
+    """Clean the results folder."""
+    if results_dir is None:
+        results_dir = get_default_results_dir()
+    if os.path.isdir(results_dir):
+        shutil.rmtree(results_dir)
 
 
-def get_remaining_problems(df, sampler_name):
+def get_remaining_problems(df, sampler_name: str, results_dir: Path = None):
     """In case of failure, only run problems from the dataset that have not been run yet"""
-    sampler_results_filepath = get_sampler_filepath(sampler_name)
-    results_folder_path = Path(os.getcwd(), "src/evals/results")
-    if os.path.isdir(results_folder_path) and os.path.isfile(sampler_results_filepath):
+    if results_dir is None:
+        results_dir = get_default_results_dir()
+    sampler_results_filepath = get_sampler_filepath(sampler_name, results_dir)
+    if os.path.isdir(results_dir) and os.path.isfile(sampler_results_filepath):
         sampler_results = pd.read_csv(sampler_results_filepath)
         return df[~df["problem"].isin(sampler_results["query"].tolist())]
     return df
@@ -64,6 +70,7 @@ async def process_query_with_semaphore(semaphore, sampler, target_query, target_
 
 async def run_evals(
     args: argparse.Namespace,
+    results_dir: Path = None,
 ):
     """
     Run SimpleQA benchmark for each sampler.
@@ -72,21 +79,28 @@ async def run_evals(
     a progress bar to track progress throughout the run. After each sampler is completed, write the results to the
     results folder in the format "raw_results_<sampler>.csv". Once all samplers are completed, calculate metrics based
     on the retrieved results and create a csv called "simpleqa_results.csv".
+
+    Args:
+        args: Command line arguments
+        results_dir: Directory to write results to. Defaults to src/evals/results
     """
+    if results_dir is None:
+        results_dir = get_default_results_dir()
+
     df = pd.read_csv(args.csv_path)
     if args.limit:
         df = df.sample(n=args.limit)
     if args.clean:
-        clean_results_folder()
+        clean_results_folder(results_dir)
 
     results = {}
     for sampler_name in args.samplers:
         sampler = get_sampler(sampler_name)
         # Only run on problems that are not already in results folder
-        remaining_problems = get_remaining_problems(df, sampler.sampler_name)
+        remaining_problems = get_remaining_problems(df, sampler.sampler_name, results_dir)
         if len(remaining_problems) == 0:
             logging.info(f"No problems remaining for sampler {sampler.sampler_name}, moving on...")
-            results[sampler.sampler_name] = pd.read_csv(get_sampler_filepath(sampler.sampler_name))
+            results[sampler.sampler_name] = pd.read_csv(get_sampler_filepath(sampler.sampler_name, results_dir))
             continue
 
         logging.info(f"Running sampler {sampler.sampler_name} on {len(remaining_problems)} problems")
@@ -115,20 +129,23 @@ async def run_evals(
 
                 await asyncio.gather(*[t for t in tasks if not t.done()])
                 # Write results of each batch so we can keep progress in case of a failure
-                write_raw_sampler_results(batch_results, sampler.sampler_name)
+                write_raw_sampler_results(batch_results, sampler.sampler_name, results_dir)
 
 
-def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: str):
+def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: str, results_dir: Path = None):
     """
     Write raw results to a csv file.
 
     This takes the raw results list, not the full results dictionary in case an individual sampler fails.
     """
-    df_sampler_results = pd.DataFrame(sampler_results)
-    if not os.path.isdir(Path(os.getcwd(), "src/evals/results")):
-        os.mkdir(Path(os.getcwd(), "src/evals/results"))
+    if results_dir is None:
+        results_dir = get_default_results_dir()
 
-    sampler_results_filepath = get_sampler_filepath(sampler_name)
+    df_sampler_results = pd.DataFrame(sampler_results)
+    if not os.path.isdir(results_dir):
+        os.makedirs(results_dir, exist_ok=True)
+
+    sampler_results_filepath = get_sampler_filepath(sampler_name, results_dir)
     if os.path.isfile(sampler_results_filepath):
         # If file already exists, append
         df_sampler_results.to_csv(

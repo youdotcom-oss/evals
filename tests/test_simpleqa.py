@@ -11,7 +11,7 @@ import pandas as pd
 import pytest
 
 from evals.eval_runner import (
-    get_search_results_and_run_evals,
+    run_evals,
     get_sampler_filepath,
 )
 from evals.eval_results_analyzer import write_metrics
@@ -20,10 +20,15 @@ from evals.eval_results_analyzer import write_metrics
 dotenv.load_dotenv()
 
 
+def get_test_results_dir() -> Path:
+    """Get the test results directory path."""
+    return Path(os.getcwd(), "tests/results")
+
+
 @pytest.fixture
 def test_results_cleanup():
     """Cleanup test results before and after test"""
-    results_folder_path = Path(os.getcwd(), "src/evals/results")
+    results_folder_path = get_test_results_dir()
 
     # Clean before test
     if os.path.isdir(results_folder_path):
@@ -50,6 +55,7 @@ async def test_simpleqa_runner(test_results_cleanup):
     """
     # Create test arguments
     num_problems = 10
+    results_dir = get_test_results_dir()
     args = argparse.Namespace(
         samplers=["you_unified_search", "exa_search_with_contents", "tavily_basic", "tavily_advanced", "serp_google"],
         csv_path="data/simple_qa.csv",
@@ -61,10 +67,10 @@ async def test_simpleqa_runner(test_results_cleanup):
     )
 
     # Run the evaluation
-    await get_search_results_and_run_evals(args)
+    await run_evals(args, results_dir=results_dir)
     for sampler in args.samplers:
         # Verify results file was created
-        results_filepath = get_sampler_filepath(sampler)
+        results_filepath = get_sampler_filepath(sampler, results_dir)
         assert os.path.isfile(results_filepath), f"Results file not created at {results_filepath}"
 
         # Read and verify results
@@ -82,14 +88,14 @@ async def test_simpleqa_runner(test_results_cleanup):
         assert df_results["query"].notna().all(), "Some queries are null"
 
         # Write and verify metrics
-        write_metrics()
-        metrics_path = Path(os.getcwd(), "src/evals/results/simpleqa_results.csv")
+        write_metrics(results_dir)
+        metrics_path = results_dir / "simpleqa_results.csv"
         assert os.path.isfile(metrics_path), "Metrics file not created"
 
         df_metrics = pd.read_csv(metrics_path)
         assert len(df_metrics) == len(args.samplers), f"Expected {len(args.samplers)} sampler in metrics"
         assert df_metrics["provider"].drop_duplicates().tolist().sort() == args.samplers.sort()
-        assert "average_score" in df_metrics.columns
+        assert "accuracy_score" in df_metrics.columns
         assert "p50_latency" in df_metrics.columns
         assert "problem_count" in df_metrics.columns
 
@@ -103,6 +109,7 @@ async def test_simpleqa_runner_resume_capability(test_results_cleanup):
     from where it left off without re-processing completed queries.
     """
     num_problems = 10
+    results_dir = get_test_results_dir()
     # Create test arguments for first run (partial)
     args = argparse.Namespace(
         samplers=["you_unified_search"],
@@ -115,9 +122,9 @@ async def test_simpleqa_runner_resume_capability(test_results_cleanup):
     )
 
     # First run
-    await get_search_results_and_run_evals(args)
+    await run_evals(args, results_dir=results_dir)
     for sampler in args.samplers:
-        results_filepath = get_sampler_filepath(sampler)
+        results_filepath = get_sampler_filepath(sampler, results_dir)
         df_first = pd.read_csv(results_filepath)
         first_run_count = len(df_first)
         assert first_run_count == num_problems, f"Expected {num_problems} results from first run, got {first_run_count}"
@@ -125,9 +132,9 @@ async def test_simpleqa_runner_resume_capability(test_results_cleanup):
     # Second run with more queries (should add new results)
     args.limit = 5
     args.clean = False  # Don't clean, resume from existing
-    await get_search_results_and_run_evals(args)
+    await run_evals(args, results_dir=results_dir)
     for sampler in args.samplers:
-        results_filepath = get_sampler_filepath(sampler)
+        results_filepath = get_sampler_filepath(sampler, results_dir)
         df_second = pd.read_csv(results_filepath)
         second_run_count = len(df_second)
         assert second_run_count == num_problems + args.limit, (
