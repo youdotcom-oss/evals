@@ -46,3 +46,6 @@ Run the SimpleQA evaluation on just You.com for 5 random problems
 Results files will be placed in `simpleqa/results` after a successful run of SimpleQA. Files following the pattern
 `raw_results_{sampler}.csv` are the raw results for each individual sampler. The file `simpleqa_results.csv` contains
 aggregated results with various metrics useful for analysis.
+
+Please note that latency numbers include the total time it takes to run the API request on your machine, so your network
+speeds will impact reported numbers and may fluctuate between runs.
