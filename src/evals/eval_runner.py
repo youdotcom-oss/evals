@@ -61,19 +61,20 @@ def get_remaining_problems(df, sampler_name: str, dataset_name: str, results_dir
     return df
 
 
-async def process_query_with_semaphore(semaphore, sampler, target_query, target_ground_truth):
+async def process_query_with_semaphore(semaphore, sampler, target_query, target_ground_truth, dataset):
     async with semaphore:
         try:
-            return await sampler(target_query, ground_truth=target_ground_truth)
+            return await sampler(target_query, ground_truth=target_ground_truth, dataset=dataset)
         except Exception as e:
             logging.error(f"Failed to run {sampler.sampler_name} for query: {target_query}")
-            return e
+            raise e
 
 
 def get_dataset(dataset_name):
     if dataset_name == "simpleqa":
         return pd.read_csv("data/simpleqa_full_dataset.csv")
-    # TODO: Add frames, route to deep search
+    elif dataset_name == "frames":
+        return pd.read_csv("data/frames_full_dataset.csv")
     else:
         raise ValueError(f"Dataset '{dataset_name}' not recognized, run python src/evals/eval_runner.py --help for available datasets")
 
@@ -132,7 +133,15 @@ async def run_evals(
                     for _, row in batch_df.iterrows():
                         query = row["problem"]
                         ground_truth = row["answer"]
-                        task = asyncio.create_task(process_query_with_semaphore(semaphore, sampler, query, ground_truth))
+                        task = asyncio.create_task(
+                            process_query_with_semaphore(
+                                semaphore=semaphore,
+                                sampler=sampler,
+                                target_query=query,
+                                target_ground_truth=ground_truth,
+                                dataset=dataset_name,
+                             )
+                        )
                         tasks.append(task)
 
                     batch_results = await asyncio.gather(*tasks, return_exceptions=True)
