@@ -2,10 +2,9 @@ from abc import abstractmethod
 import asyncio
 import logging
 import sys
-import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Dict
+from typing import Any
 
 from evals.samplers.base_samplers.base_sampler import BaseSampler
 

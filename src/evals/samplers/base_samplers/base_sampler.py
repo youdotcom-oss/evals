@@ -4,9 +4,7 @@ import logging
 import time
 from typing import Any, Dict
 
-import httpx
-
-from evals.processing.synthesize_answer import SynthesizeAnswer
+from evals.processing import synthesizer_utils
 
 
 class BaseSampler(ABC):
@@ -50,7 +48,7 @@ class BaseSampler(ABC):
         pass
 
     @abstractmethod
-    def format_results(self, results: Any) -> str:
+    def format_results(self, results: Any) -> list[str]:
         """
         Format search results.
 
@@ -73,15 +71,6 @@ class BaseSampler(ABC):
                 return last_message["content"]
         return str(message_list)
 
-    async def __synthesize_response(self, query: str, formatted_context: str) -> str:
-        """
-        Private method for synthesizing responses from search results using OpenAI
-        """
-        answer_synthesizer = SynthesizeAnswer(max_retries=3)
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            result = await answer_synthesizer.process_single(client, query, formatted_context)
-        return result.response_text if result else f"Synthesis failed for: {query}"
-
     @staticmethod
     async def __evaluate_response(query: str, ground_truth: str, generated_answer: str) -> Dict[str, Any]:
         """Evaluate the generated response against ground truth"""
@@ -92,21 +81,32 @@ class BaseSampler(ABC):
 
     async def __call__(self, query_input, ground_truth: str = "", overwrite: bool = False) -> Dict[str, Any]:
         """Main execution pipeline"""
-
+        internal_response_time_ms = None
+        end_to_end_time_ms = None
         if isinstance(query_input, list):
             query = self.__extract_query_from_messages__(query_input)
         else:
             query = str(query_input)
 
+        end_to_end_start_time = time.time()
         # Get raw results
         try:
             # Run synchronous SDK call in thread pool
-            start_time = time.time()
             raw_results = await asyncio.to_thread(self.get_search_results, query)
-            response_time_no_retries = (time.time() - start_time) * 1000  # Convert to ms
+            if self.sampler_name == 'you_search_livecrawl':
+                internal_response_time_ms = round(raw_results["metadata"]["latency"] * 1000, 2)  # Convert to ms
+            elif self.sampler_name == 'you_search':
+                internal_response_time_ms = round(raw_results.metadata.latency * 1000, 2)  # Convert to ms
+            elif 'tavily' in self.sampler_name:
+                internal_response_time_ms = round(raw_results['response_time'] * 1000, 2)  # Convert to ms
+            elif 'exa' in self.sampler_name:
+                # Exa does not return internal run time, best we can do is API call time
+                internal_response_time_ms = round((time.time() - end_to_end_start_time) * 1000, 2)  # Convert to ms
+
             formatted_results = self.format_results(raw_results)
         except Exception as e:
-            raw_results, response_time_no_retries, formatted_results = (
+            raw_results, internal_response_time_ms, end_to_end_time_ms, formatted_results = (
+                "FAILED",
                 "FAILED",
                 "FAILED",
                 "FAILED",
@@ -116,9 +116,12 @@ class BaseSampler(ABC):
         # Synthesize raw results
         try:
             if self.needs_synthesis:
-                generated_answer = await self.__synthesize_response(query, formatted_results)
+                generated_answer = synthesizer_utils.synthesize_response(query, formatted_results)
             else:
                 generated_answer = formatted_results  # Already synthesized by API
+
+            end_to_end_end_time = time.time()
+            end_to_end_time_ms = round((end_to_end_end_time - end_to_end_start_time) * 1000, 2)
         except Exception as e:
             generated_answer = "FAILED"
             logging.exception(e)
@@ -137,7 +140,8 @@ class BaseSampler(ABC):
         # Format result
         result = {
             "query": query,
-            "response_time_ms": response_time_no_retries,
+            "internal_response_time_ms": internal_response_time_ms,
+            "end_to_end_time_ms": end_to_end_time_ms,
             "evaluation_result": evaluation_result,
             "generated_answer": generated_answer,
             "ground_truth": ground_truth,

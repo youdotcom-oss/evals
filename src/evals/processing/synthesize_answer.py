@@ -3,18 +3,16 @@ This class is used to synthesize the results from the sampler into a concise ans
 search results into a single answer to be compared against the ground truth. Using the same prompt and model for all
 samplers ensures an equal playing field and an apples to apples comparison across all samplers.
 
-To view or edit the model used for synthesis, see evals.simpleqa.constants
+To view or edit the model used for synthesis, see evals.constants
 """
 
-import asyncio
 from dataclasses import dataclass
 import logging
 import os
+import requests
+import time
+import traceback
 from typing import List, Dict, Any
-
-import httpx
-
-from evals import constants
 
 
 @dataclass
@@ -25,9 +23,11 @@ class SynthesizeAnswerResponse:
 
 
 class SynthesizeAnswer:
-    def __init__(self, max_retries: int = 3):
+    def __init__(self, synthesis_prompt: str, synthesis_model: str, max_retries: int = 3):
         self.logger = logging.getLogger(self.__class__.__name__)
 
+        self.synthesis_prompt = synthesis_prompt
+        self.synthesis_model = synthesis_model
         self.max_retries = max_retries
         self.api_key = os.getenv("OPENAI_API_KEY")
         self.headers = {
@@ -35,53 +35,58 @@ class SynthesizeAnswer:
             "Content-Type": "application/json",
         }
 
-    async def process_single(self, session: httpx.AsyncClient, query: str, snippets: str) -> SynthesizeAnswerResponse:
-        """Synthesize a single response asynchronously"""
+    def process_single(self, query: str, results: str) -> SynthesizeAnswerResponse:
+        """Synthesize a single response"""
         for trial in range(self.max_retries + 1):
             try:
-                synthesis_prompt = """
-                    You are an AI assistant that answers questions using search results.
-                    Read the provided search snippets carefully and answer based only on information found in the snippets.
-                    Keep your response clear and concise.
-                """
-
                 payload = {
-                    "model": constants.SYNTHESIS_MODEL,
+                    "model": self.synthesis_model,
                     "messages": [
-                        {"role": "system", "content": synthesis_prompt},
+                        {"role": "system", "content": self.synthesis_prompt},
                         {
                             "role": "user",
-                            "content": f"Query: {query}\n\nSearch results: {snippets}",
+                            "content": f"Query: {query}\n\nSearch results: {results}",
                         },
                     ],
                 }
 
-                response = await session.post(
+                import time
+
+                start_time = time.time()
+                response = requests.post(
                     "https://api.openai.com/v1/chat/completions",
                     headers=self.headers,
                     json=payload,
                 )
+
                 if response.status_code == 200:
                     result = response.json()
                     return SynthesizeAnswerResponse(
                         response_text=result["choices"][0]["message"]["content"],
-                        actual_queried_message_list=[snippets],
+                        actual_queried_message_list=[results],
                         response_metadata={
-                            "model": constants.SYNTHESIS_MODEL,
+                            "model": self.synthesis_model,
                             "trial": trial,
                         },
                     )
+                if response.status_code == 402:
+                    print("Rate limit hit")
+                    # TODO: Find a clever way to cut this eval short, but not stop a long chain of evals
+                    quit()
                 else:
                     error_text = response.text
+                    print(f"ERROR: Failed synthesis after {self.max_retries} retries")
+                    traceback.print_exc()
                     raise Exception(f"API error {response.status_code}: {error_text}")
 
             except Exception as e:
                 if trial >= self.max_retries:
-                    self.logger.error(f"Failed after {self.max_retries} retries: {e}")
+                    print(f"ERROR: Failed synthesis after {self.max_retries} retries")
+                    traceback.print_exc()
                     raise
 
                 backoff = 2**trial
-                self.logger.warning(f"Retry {trial + 1} in {backoff}s: {e}")
-                await asyncio.sleep(backoff)
+                print(f"WARNING: Retry {trial + 1} in {backoff}s: {e}")
+                time.sleep(backoff)
 
         raise ValueError("Could not synthesize answer")

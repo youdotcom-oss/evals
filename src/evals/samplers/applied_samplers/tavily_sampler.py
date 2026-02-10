@@ -35,12 +35,12 @@ class TavilySampler(BaseSDKSampler):
         if self.custom_args and self.custom_args["search_depth"]:
             return self.client.search(
                 query=query,
-                max_results=5,
+                max_results=10,
                 search_depth=self.custom_args["search_depth"],
             )
         raise ValueError("Unknown configuration for Tavily")
 
-    def format_results(self, results: Any) -> str:
+    def format_results(self, results: Any) -> list[str]:
         formatted_results = []
         raw_results = results["results"]
 
@@ -52,4 +52,4 @@ class TavilySampler(BaseSDKSampler):
                 if content:
                     formatted_results.append(f"[{title}]({url})\ncontent: {content}\n")
 
-        return "\n---\n".join(formatted_results)
+        return formatted_results

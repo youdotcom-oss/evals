@@ -116,8 +116,7 @@ class AnswerGrader:
                 payload = {
                     "model": self.model,
                     "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.0,
-                    "max_tokens": 1024,
+                    "max_completion_tokens": 1024,
                 }
 
                 response = await client.post(
@@ -154,7 +153,7 @@ class AnswerGrader:
             predicted_answer=predicted_answer,
         )
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             grading_response = await self.call_openai_async(client, grader_prompt)
 
         # Parse the grade

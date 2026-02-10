@@ -7,7 +7,7 @@ from youdotcom import You
 from evals.samplers.base_samplers.base_sdk_sampler import BaseSDKSampler
 
 
-class YouSampler(BaseSDKSampler):
+class YouSearchSampler(BaseSDKSampler):
     def __init__(
         self,
         sampler_name: str,
@@ -34,10 +34,10 @@ class YouSampler(BaseSDKSampler):
     def _get_search_results_impl(self, query: str) -> Any:
         return self.client.search.unified(
             query=query,
-            count=5,
+            count=10,
         )
 
-    def format_results(self, results: Any) -> str:
+    def format_results(self, results: Any) -> list[str]:
         formatted_results = []
         raw_results = []
         if results.results and results.results.web:
@@ -53,4 +53,4 @@ class YouSampler(BaseSDKSampler):
             if snippets and isinstance(snippets, list):
                 snippets = " ".join(snippets)
             formatted_results.append(f"[{title}]({url})\n snippets: {snippets}\n description: {description}")
-        return "\n---\n".join(formatted_results)
+        return formatted_results
