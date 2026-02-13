@@ -14,7 +14,8 @@ from typing import Any
 import pandas as pd
 from tqdm import tqdm
 
-from evals.configs import samplers
+from evals.configs import samplers, datasets
+from evals.samplers.base_samplers.base_sampler import BaseSampler
 from evals.eval_results_analyzer import write_metrics, get_default_results_dir
 
 
@@ -26,12 +27,12 @@ logging.getLogger("google_genai.models").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
 
-def get_sampler_filepath(sampler_name: str, dataset_name: str, results_dir: Path = None) -> Path:
+def get_sampler_filepath(sampler: BaseSampler, dataset: datasets.Dataset, results_dir: Path = None) -> Path:
     """Get the filepath for a sampler's results file."""
     if results_dir is None:
         results_dir = get_default_results_dir()
 
-    return results_dir / f"dataset_{dataset_name}_raw_results_{sampler_name}.csv"
+    return results_dir / f"dataset_{dataset.dataset_name}_raw_results_{sampler.sampler_name}.csv"
 
 
 def get_sampler(sampler_name: str):
@@ -50,15 +51,15 @@ def clean_results_folder(results_dir: Path = None):
         shutil.rmtree(results_dir)
 
 
-def get_remaining_problems(df, sampler_name: str, dataset_name: str, results_dir: Path = None):
+def get_remaining_problems(dataset: datasets.Dataset, sampler: BaseSampler, results_dir: Path = None):
     """In case of failure, only run problems from the dataset that have not been run yet"""
     if results_dir is None:
         results_dir = get_default_results_dir()
-    sampler_results_filepath = get_sampler_filepath(sampler_name, dataset_name, results_dir)
+    sampler_results_filepath = get_sampler_filepath(sampler, dataset, results_dir)
     if os.path.isdir(results_dir) and os.path.isfile(sampler_results_filepath):
         sampler_results = pd.read_csv(sampler_results_filepath)
-        return df[~df["problem"].isin(sampler_results["query"].tolist())]
-    return df
+        return dataset.df[~dataset.df["problem"].isin(sampler_results["query"].tolist())]
+    return dataset.df
 
 
 async def process_query_with_semaphore(semaphore, sampler, target_query, target_ground_truth, dataset):
@@ -71,12 +72,15 @@ async def process_query_with_semaphore(semaphore, sampler, target_query, target_
 
 
 def get_dataset(dataset_name):
-    if dataset_name == "simpleqa":
-        return pd.read_csv("data/simpleqa_full_dataset.csv")
-    elif dataset_name == "frames":
-        return pd.read_csv("data/frames_full_dataset.csv")
-    else:
+    dataset = next(
+        (dataset for dataset in datasets.DATASETS if dataset.dataset_name == dataset_name), None
+    )
+    dataset.df = pd.read_csv(dataset.csv_path)
+    if dataset is None:
         raise ValueError(f"Dataset '{dataset_name}' not recognized, run python src/evals/eval_runner.py --help for available datasets")
+    if dataset.df is None:
+        raise ValueError(f"Failed to initialize df for {dataset_name} and csv_path {dataset.csv_path}")
+    return dataset
 
 
 async def run_evals(
@@ -101,33 +105,33 @@ async def run_evals(
 
     results = {}
     for dataset_name in args.datasets:
-        df = get_dataset(dataset_name)
+        dataset = get_dataset(dataset_name)
         if args.limit:
-            df = df.sample(n=args.limit)
+            dataset.df = dataset.df.sample(n=args.limit)
         for sampler_name in args.samplers:
             sampler = get_sampler(sampler_name)
             # Only run on problems that are not already in results folder
             remaining_problems = get_remaining_problems(
-                df=df, sampler_name=sampler.sampler_name, dataset_name=dataset_name, results_dir=results_dir
+                dataset=dataset, sampler=sampler, results_dir=results_dir
             )
             if len(remaining_problems) == 0:
                 logging.info(f"No problems remaining for sampler {sampler.sampler_name}, moving on...")
-                results[sampler.sampler_name] = pd.read_csv(get_sampler_filepath(sampler.sampler_name, dataset_name, results_dir))
+                results[sampler.sampler_name] = pd.read_csv(get_sampler_filepath(sampler, dataset, results_dir))
                 continue
 
             logging.info(f"Running sampler {sampler.sampler_name} on dataset {dataset_name} on {len(remaining_problems)} problems")
-            df = remaining_problems
+            dataset.df = remaining_problems
 
             # Run problems in batches
             with tqdm(
-                total=len(df),
-                desc=f"Running sampler: {sampler.sampler_name} for dataset {dataset_name}",
+                total=len(dataset.df),
+                desc=f"Running sampler: {sampler.sampler_name} for dataset {dataset.dataset_name}",
                 unit="queries",
             ) as pbar:
                 semaphore = asyncio.Semaphore(args.max_concurrent_tasks)
 
-                for i in range(0, len(df), args.batch_size):
-                    batch_df = df[i : i + args.batch_size]
+                for i in range(0, len(dataset.df), args.batch_size):
+                    batch_df = dataset.df[i : i + args.batch_size]
 
                     tasks = []
                     for _, row in batch_df.iterrows():
@@ -139,7 +143,7 @@ async def run_evals(
                                 sampler=sampler,
                                 target_query=query,
                                 target_ground_truth=ground_truth,
-                                dataset=dataset_name,
+                                dataset=dataset,
                              )
                         )
                         tasks.append(task)
@@ -149,10 +153,10 @@ async def run_evals(
 
                     await asyncio.gather(*[t for t in tasks if not t.done()])
                     # Write results of each batch so we can keep progress in case of a failure
-                    write_raw_sampler_results(batch_results, sampler.sampler_name, dataset_name, results_dir)
+                    write_raw_sampler_results(batch_results, sampler, dataset, results_dir)
 
 
-def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: str, dataset_name: str, results_dir: Path = None):
+def write_raw_sampler_results(sampler_results: list[str | Any], sampler: BaseSampler, dataset: datasets.Dataset, results_dir: Path = None):
     """
     Write raw results to a csv file.
 
@@ -165,7 +169,7 @@ def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: st
     if not os.path.isdir(results_dir):
         os.makedirs(results_dir, exist_ok=True)
 
-    sampler_results_filepath = get_sampler_filepath(sampler_name, dataset_name, results_dir)
+    sampler_results_filepath = get_sampler_filepath(sampler, dataset, results_dir)
     if os.path.isfile(sampler_results_filepath):
         # If file already exists, append
         df_sampler_results.to_csv(
@@ -182,8 +186,8 @@ def write_raw_sampler_results(sampler_results: list[str | Any], sampler_name: st
 
 
 async def main():
-    available_samplers = ["you_search_livecrawl", "you_search", "exa_search_with_contents", "google_vertex", "tavily_basic", "tavily_advanced"]
-    available_datasets = ["simpleqa", "xfreshqa", "finsearch"]
+    available_samplers = [sampler.sampler_name for sampler in samplers.SAMPLERS]
+    available_datasets = [dataset.dataset_name for dataset in datasets.DATASETS]
     parser = argparse.ArgumentParser(description="Run an eval")
     parser.add_argument(
         "--samplers",

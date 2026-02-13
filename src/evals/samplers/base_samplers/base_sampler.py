@@ -3,8 +3,8 @@ import asyncio
 import logging
 import time
 from typing import Any, Dict
-from wsgiref.validate import validator
 
+from evals.configs import datasets
 from evals.processing import synthesizer_utils
 
 
@@ -73,19 +73,11 @@ class BaseSampler(ABC):
         return str(message_list)
 
     @staticmethod
-    async def __evaluate_response(query: str, ground_truth: str, generated_answer: str, dataset: str) -> Dict[str, Any]:
+    async def __evaluate_response(query: str, ground_truth: str, generated_answer: str, dataset: datasets.Dataset) -> Dict[str, Any]:
         """Evaluate the generated response against ground truth"""
-        from evals.processing.evaluate_answer import AnswerGrader
+        return await dataset.grader(query, ground_truth, generated_answer)
 
-        evaluator = AnswerGrader()
-        if dataset == 'simpleqa':
-            return await evaluator.evaluate_single_simpleqa(query, ground_truth, generated_answer)
-        elif dataset == 'frames':
-            return await evaluator.evaluate_single_frames(query, ground_truth, generated_answer)
-        else:
-            raise ValueError(f"Unknown dataset {dataset}, not sure which evaluator to use")
-
-    async def __call__(self, query_input, dataset: str, ground_truth: str = "", overwrite: bool = False) -> Dict[str, Any]:
+    async def __call__(self, query_input, dataset: dict, ground_truth: str = "", overwrite: bool = False) -> Dict[str, Any]:
         """Main execution pipeline"""
         internal_response_time_ms = None
         end_to_end_time_ms = None
