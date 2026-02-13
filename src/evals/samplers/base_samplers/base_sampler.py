@@ -89,15 +89,15 @@ class BaseSampler(ABC):
         try:
             # Run synchronous SDK call in thread pool
             raw_results = await asyncio.to_thread(self.get_search_results, query)
-            if self.sampler_name == 'you_search_livecrawl':
+            if self.sampler_name == "you_search_livecrawl":
                 internal_response_time_ms = round(raw_results["metadata"]["latency"] * 1000, 2)  # Convert to ms
-            elif self.sampler_name == 'you_search':
+            elif self.sampler_name == "you_search":
                 internal_response_time_ms = round(raw_results.metadata.latency * 1000, 2)  # Convert to ms
-            elif 'tavily' in self.sampler_name:
-                internal_response_time_ms = round(raw_results['response_time'] * 1000, 2)  # Convert to ms
-            elif 'exa' in self.sampler_name:
-                # Exa does not return internal run time, best we can do is API call time
-                internal_response_time_ms = round((time.time() - end_to_end_start_time) * 1000, 2)  # Convert to ms
+            elif "tavily" in self.sampler_name:
+                internal_response_time_ms = round(raw_results["response_time"] * 1000, 2)  # Convert to ms
+            elif "perplexity" in self.sampler_name:
+                # Perplexity is often empty
+                internal_response_time_ms = raw_results.server_time
 
             formatted_results = self.format_results(raw_results)
         except Exception as e:

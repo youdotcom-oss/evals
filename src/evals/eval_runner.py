@@ -39,7 +39,9 @@ def get_sampler(sampler_name: str):
     """Initialize requested samplers"""
     sampler = next((sampler for sampler in samplers.SAMPLERS if sampler.sampler_name == sampler_name), None)
     if sampler is None:
-        raise ValueError(f"Sampler '{sampler_name}' not found. Available samplers: {[sampler.sampler_name for sampler in samplers.SAMPLERS]}")
+        raise ValueError(
+            f"Sampler '{sampler_name}' not found. Available samplers: {[sampler.sampler_name for sampler in samplers.SAMPLERS]}"
+        )
     return sampler
 
 
@@ -72,9 +74,7 @@ async def process_query_with_semaphore(semaphore, sampler, target_query, target_
 
 
 def get_dataset(dataset_name):
-    dataset = next(
-        (dataset for dataset in datasets.DATASETS if dataset.dataset_name == dataset_name), None
-    )
+    dataset = next((dataset for dataset in datasets.DATASETS if dataset.dataset_name == dataset_name), None)
     dataset.df = pd.read_csv(dataset.csv_path)
     if dataset is None:
         raise ValueError(f"Dataset '{dataset_name}' not recognized, run python src/evals/eval_runner.py --help for available datasets")
@@ -111,9 +111,7 @@ async def run_evals(
         for sampler_name in args.samplers:
             sampler = get_sampler(sampler_name)
             # Only run on problems that are not already in results folder
-            remaining_problems = get_remaining_problems(
-                dataset=dataset, sampler=sampler, results_dir=results_dir
-            )
+            remaining_problems = get_remaining_problems(dataset=dataset, sampler=sampler, results_dir=results_dir)
             if len(remaining_problems) == 0:
                 logging.info(f"No problems remaining for sampler {sampler.sampler_name}, moving on...")
                 results[sampler.sampler_name] = pd.read_csv(get_sampler_filepath(sampler, dataset, results_dir))
@@ -144,7 +142,7 @@ async def run_evals(
                                 target_query=query,
                                 target_ground_truth=ground_truth,
                                 dataset=dataset,
-                             )
+                            )
                         )
                         tasks.append(task)
 
