@@ -199,7 +199,6 @@ async def main():
         default=available_datasets,
         type=str,
         nargs="+",
-        required=True,
         help=f"The dataset(s) to eval against (can specify multiple). Select from {available_datasets}",
     )
     parser.add_argument(
