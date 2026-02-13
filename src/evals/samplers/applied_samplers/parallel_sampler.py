@@ -21,9 +21,6 @@ class ParallelSearchSampler(BaseSDKSampler):
         self.max_characters = max_characters
         self.mode = mode
 
-        if api_key is None:
-            api_key = os.getenv("PARALLEL_API_KEY")
-
         super().__init__(
             sampler_name=sampler_name,
             api_key=api_key,
@@ -31,12 +28,9 @@ class ParallelSearchSampler(BaseSDKSampler):
             max_concurrency=max_concurrency,
         )
 
-        if api_key is None:
-            print("No API key provided for Parallel")
-
     def _initialize_client(self):
         """Initialize Parallel SDK client"""
-        return Parallel(api_key=self.api_key)
+        self.client = Parallel(api_key=self.api_key)
 
     def _get_search_results_impl(self, query):
         search_params = {

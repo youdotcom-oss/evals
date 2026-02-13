@@ -2,6 +2,7 @@ import os
 
 from evals.samplers.applied_samplers.exa_sampler import ExaSampler
 from evals.samplers.applied_samplers.parallel_sampler import ParallelSearchSampler
+from evals.samplers.applied_samplers.perplexity_sampler import PerplexitySearchSampler
 from evals.samplers.applied_samplers.tavily_sampler import TavilySampler
 from evals.samplers.applied_samplers.you_livecrawl_sampler import YouLivecrawlSampler
 from evals.samplers.applied_samplers.you_search_sampler import YouSearchSampler
@@ -25,6 +26,10 @@ SAMPLERS = [
         sampler_name="parallel_fast",
         api_key=os.getenv("PARALLEL_API_KEY"),
         mode="fast",
+    ),
+    PerplexitySearchSampler(
+        sampler_name="perplexity_search",
+        api_key=os.getenv("PERPLEXITY_API_KEY"),
     ),
     TavilySampler(
         sampler_name="tavily_basic",

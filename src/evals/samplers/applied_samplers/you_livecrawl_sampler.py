@@ -15,7 +15,6 @@ class YouLivecrawlSampler(BaseAPISampler):
         max_retries: int = 3,
         max_concurrency: int = 10,
         needs_synthesis: bool = True,
-        custom_args: Dict[str, Any] | None = None,
     ):
         if api_key is None:
             raise ValueError(

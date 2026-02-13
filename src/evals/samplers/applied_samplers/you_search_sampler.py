@@ -16,7 +16,6 @@ class YouSearchSampler(BaseSDKSampler):
         max_retries: int = 3,
         max_concurrency: int = 10,
         needs_synthesis: bool = True,
-        custom_args: Dict[str, Any] | None = None,
     ):
         super().__init__(
             sampler_name=sampler_name,

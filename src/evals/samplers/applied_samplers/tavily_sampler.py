@@ -1,6 +1,6 @@
 """Run evals using the Tavily SDK"""
 
-from typing import Any, Dict
+from typing import Any
 
 from tavily import TavilyClient
 

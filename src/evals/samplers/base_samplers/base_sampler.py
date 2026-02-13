@@ -19,14 +19,12 @@ class BaseSampler(ABC):
         max_retries: int = 3,
         max_concurrency: int = 10,
         needs_synthesis: bool = True,
-        custom_args=None,
     ):
         self.sampler_name = sampler_name
         self.timeout = timeout
         self.max_retries = max_retries
         self.max_concurrency = max_concurrency
         self.needs_synthesis = needs_synthesis
-        self.custom_args = custom_args
 
         if api_key:
             self.api_key = api_key
