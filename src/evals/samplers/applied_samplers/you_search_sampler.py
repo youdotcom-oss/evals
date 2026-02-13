@@ -7,7 +7,7 @@ from youdotcom import You
 from evals.samplers.base_samplers.base_sdk_sampler import BaseSDKSampler
 
 
-class YouSearchSampler(BaseSDKSampler):
+class YouSearchSnippetsSampler(BaseSDKSampler):
     def __init__(
         self,
         sampler_name: str,

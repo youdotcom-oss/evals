@@ -5,7 +5,7 @@ from evals.samplers.applied_samplers.parallel_sampler import ParallelSearchSampl
 from evals.samplers.applied_samplers.perplexity_sampler import PerplexitySearchSampler
 from evals.samplers.applied_samplers.tavily_sampler import TavilySampler
 from evals.samplers.applied_samplers.you_livecrawl_sampler import YouLivecrawlSampler
-from evals.samplers.applied_samplers.you_search_sampler import YouSearchSampler
+from evals.samplers.applied_samplers.you_search_sampler import YouSearchSnippetsSampler
 
 
 SAMPLERS = [
@@ -13,8 +13,8 @@ SAMPLERS = [
         sampler_name="you_search_livecrawl",
         api_key=os.getenv("YOU_API_KEY"),
     ),
-    YouSearchSampler(
-        sampler_name="you_search",
+    YouSearchSnippetsSampler(
+        sampler_name="you_search_snippets",
         api_key=os.getenv("YOU_API_KEY"),
     ),
     ExaSampler(
