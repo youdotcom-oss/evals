@@ -25,7 +25,6 @@ class YouSearchSampler(BaseSDKSampler):
             timeout=timeout,
             max_concurrency=max_concurrency,
             needs_synthesis=needs_synthesis,
-            custom_args=custom_args,
         )
 
     def _initialize_client(self):

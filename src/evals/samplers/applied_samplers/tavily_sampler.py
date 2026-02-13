@@ -16,8 +16,9 @@ class TavilySampler(BaseSDKSampler):
         max_retries: int = 3,
         max_concurrency: int = 10,
         needs_synthesis: bool = True,
-        custom_args: Dict[str, Any] | None = None,
+        search_depth: str = None,
     ):
+        self.search_depth = search_depth
         super().__init__(
             sampler_name=sampler_name,
             api_key=api_key,
@@ -25,20 +26,17 @@ class TavilySampler(BaseSDKSampler):
             timeout=timeout,
             max_concurrency=max_concurrency,
             needs_synthesis=needs_synthesis,
-            custom_args=custom_args,
         )
 
     def _initialize_client(self):
         self.client = TavilyClient(self.api_key)
 
     def _get_search_results_impl(self, query: str) -> Any:
-        if self.custom_args and self.custom_args["search_depth"]:
-            return self.client.search(
-                query=query,
-                max_results=10,
-                search_depth=self.custom_args["search_depth"],
-            )
-        raise ValueError("Unknown configuration for Tavily")
+        return self.client.search(
+            query=query,
+            max_results=10,
+            search_depth=self.search_depth,
+        )
 
     def format_results(self, results: Any) -> list[str]:
         formatted_results = []

@@ -29,7 +29,6 @@ class YouLivecrawlSampler(BaseAPISampler):
             timeout=timeout,
             max_concurrency=max_concurrency,
             needs_synthesis=needs_synthesis,
-            custom_args=custom_args,
         )
 
     @staticmethod

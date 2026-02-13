@@ -20,7 +20,6 @@ class BaseSDKSampler(BaseSampler):
         max_retries: int = 3,
         max_concurrency: int = 10,
         needs_synthesis: bool = True,
-        custom_args=None,
     ):
         super().__init__(
             sampler_name=sampler_name,
@@ -29,7 +28,6 @@ class BaseSDKSampler(BaseSampler):
             timeout=timeout,
             max_concurrency=max_concurrency,
             needs_synthesis=needs_synthesis,
-            custom_args=custom_args,
         )
         self.client = None
         if self.api_key:

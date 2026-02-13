@@ -26,7 +26,6 @@ class BaseAPISampler(BaseSampler):
             timeout=timeout,
             max_concurrency=max_concurrency,
             needs_synthesis=needs_synthesis,
-            custom_args=custom_args,
         )
 
     def _set_params(self):

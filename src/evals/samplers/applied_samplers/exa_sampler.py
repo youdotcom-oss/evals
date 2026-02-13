@@ -16,7 +16,7 @@ class ExaSampler(BaseSDKSampler):
         max_retries: int = 3,
         max_concurrency: int = 10,
         needs_synthesis: bool = True,
-        custom_args: Dict[str, Any] | None = None,
+        text: bool = False,
     ):
         super().__init__(
             sampler_name=sampler_name,
@@ -25,17 +25,13 @@ class ExaSampler(BaseSDKSampler):
             timeout=timeout,
             max_concurrency=max_concurrency,
             needs_synthesis=needs_synthesis,
-            custom_args=custom_args,
         )
 
     def _initialize_client(self):
         self.client = Exa(self.api_key)
 
     def _get_search_results_impl(self, query: str) -> Any:
-        if self.custom_args and self.custom_args["text"]:
-            return self.client.search(query=query, num_results=10, contents={"text": True})
-
-        raise ValueError("Unknown configuration for Exa")
+        return self.client.search(query=query, num_results=10, contents={"text": self.text})
 
     def format_results(self, results: Any) -> list[str]:
         formatted_results = []
