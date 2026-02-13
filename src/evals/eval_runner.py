@@ -196,6 +196,7 @@ async def main():
     )
     parser.add_argument(
         "--datasets",
+        default=available_datasets,
         type=str,
         nargs="+",
         required=True,
