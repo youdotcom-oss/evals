@@ -18,6 +18,7 @@ class ExaSampler(BaseSDKSampler):
         needs_synthesis: bool = True,
         text: bool = False,
     ):
+        self.text: bool = text
         super().__init__(
             sampler_name=sampler_name,
             api_key=api_key,
