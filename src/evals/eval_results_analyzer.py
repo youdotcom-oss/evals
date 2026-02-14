@@ -53,8 +53,8 @@ def write_metrics(results_dir: Optional[Path] = None):
         df_sampler_results = pd.read_csv(sampler_results_file)
         successful_df = df_sampler_results[df_sampler_results["query"] != "FAILED"]
 
-        avg_internal_latency = pd.to_numeric(successful_df["internal_response_time_ms"]).mean()
-        avg_end_to_end_latency = pd.to_numeric(successful_df["end_to_end_time_ms"]).mean()
+        avg_internal_latency = pd.to_numeric(successful_df["internal_response_time_ms"], errors="coerce").mean()
+        avg_end_to_end_latency = pd.to_numeric(successful_df["end_to_end_time_ms"], errors="coerce").mean()
         correct = len(df_sampler_results[df_sampler_results["evaluation_result"] == "is_correct"])
         count_answered = len(successful_df)
 
