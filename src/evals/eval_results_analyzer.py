@@ -51,7 +51,7 @@ def write_metrics(results_dir: Optional[Path] = None):
         dataset_name = sampler_results_file.split("dataset_")[1].split("_raw_results")[0]
         sampler_name = sampler_results_file.split("raw_results_")[-1].split(".")[0]
         df_sampler_results = pd.read_csv(sampler_results_file)
-        successful_df = df_sampler_results[df_sampler_results["query"] != "FAILED"]
+        successful_df = df_sampler_results[df_sampler_results["generated_answer"] != "FAILED"]
 
         avg_internal_latency = pd.to_numeric(successful_df["internal_response_time_ms"], errors="coerce").mean()
         avg_end_to_end_latency = pd.to_numeric(successful_df["end_to_end_time_ms"], errors="coerce").mean()
