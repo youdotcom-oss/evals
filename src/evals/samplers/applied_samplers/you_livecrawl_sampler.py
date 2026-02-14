@@ -51,8 +51,8 @@ class YouLivecrawlSampler(BaseAPISampler):
             "count": 10,
             "livecrawl": "all",
             "livecrawl_formats": "markdown",
-            # These parameters are in beta, and are designed to maximize performance
-            "num_bytes": 500000 + random.randint(1, 100),
+            # These parameters are in beta and are designed to maximize performance
+            "num_bytes": 500000,
             "crawl_timeout": 1,
         }
 
