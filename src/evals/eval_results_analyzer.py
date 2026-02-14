@@ -73,7 +73,7 @@ def write_metrics(results_dir: Optional[Path] = None):
         })
 
     write_path = results_dir / "analyzed_results.csv"
-    metric_df = pd.DataFrame(metric_rows)
+    metric_df = pd.DataFrame(metric_rows).sort_values(["dataset", "provider", "accuracy_score"], ascending=False)
     metric_df.to_csv(write_path, index=False)
     print(f"Results were written to {write_path}")
     print(metric_df)
