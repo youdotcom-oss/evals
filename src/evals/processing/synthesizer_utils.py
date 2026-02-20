@@ -57,13 +57,13 @@ def trim_results_to_model_limit(
     return trimmed_results
 
 
-def synthesize_response(
+async def synthesize_response(
     query: str,
     formatted_results: list[str],
     synthesis_model: str = SYNTHESIS_MODEL,
 ) -> str:
     """
-    Private method for synthesizing responses from search results using OpenAI
+    Async method for synthesizing responses from search results using OpenAI
     """
     # Trim results to fit within model token limits
     trimmed_results = trim_results_to_model_limit(formatted_results, synthesis_model)
@@ -72,5 +72,5 @@ def synthesize_response(
     concatenated_results = "\n---\n".join(trimmed_results)
 
     answer_synthesizer = SynthesizeAnswer(SYNTHESIS_PROMPT, max_retries=3, synthesis_model=synthesis_model)
-    result = answer_synthesizer.process_single(query, concatenated_results)
+    result = await answer_synthesizer.process_single(query, concatenated_results)
     return result.response_text if result else f"Synthesis failed for: {query}"

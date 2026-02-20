@@ -3,7 +3,6 @@ import asyncio
 import logging
 import sys
 import traceback
-from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 from evals.samplers.base_samplers.base_sampler import BaseSampler
@@ -61,9 +60,9 @@ class BaseSDKSampler(BaseSampler):
         """
         pass
 
-    def get_search_results(self, query: str) -> Any:
+    async def get_search_results(self, query: str) -> Any:
         """
-        Get raw search results using the SDK client.
+        Get raw search results using the SDK client asynchronously.
         This method wraps _get_search_results_impl with error handling and timeout.
 
         Args:
@@ -77,10 +76,13 @@ class BaseSDKSampler(BaseSampler):
             Exception: Re-raises any exception encountered during search
         """
         try:
-            with ThreadPoolExecutor(max_workers=1) as executor:
-                future = executor.submit(self._get_search_results_impl, query)
-                return future.result(timeout=self.timeout)
-        except TimeoutError:
+            # Run synchronous SDK call in thread pool with timeout
+            result = await asyncio.wait_for(
+                asyncio.to_thread(self._get_search_results_impl, query),
+                timeout=self.timeout
+            )
+            return result
+        except asyncio.TimeoutError:
             error_msg = f"{self.sampler_name} timed out after {self.timeout} seconds"
             logging.error(error_msg)
             raise TimeoutError(error_msg)
