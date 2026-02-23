@@ -17,9 +17,12 @@ from tqdm import tqdm
 from evals.configs import samplers, datasets
 from evals.samplers.base_samplers.base_sampler import BaseSampler
 from evals.eval_results_analyzer import write_metrics, get_default_results_dir
+from evals import utils as evals_utils
 
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 # Mute noisy client logs
 logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("httpcore").setLevel(logging.WARNING)
@@ -27,22 +30,17 @@ logging.getLogger("google_genai.models").setLevel(logging.ERROR)
 logger = logging.getLogger(__name__)
 
 
-def get_sampler_filepath(sampler: BaseSampler, dataset: datasets.Dataset, results_dir: Path = None) -> Path:
+def get_sampler_filepath(
+    sampler: BaseSampler, dataset: datasets.Dataset, results_dir: Path = None
+) -> Path:
     """Get the filepath for a sampler's results file."""
     if results_dir is None:
         results_dir = get_default_results_dir()
 
-    return results_dir / f"dataset_{dataset.dataset_name}_raw_results_{sampler.sampler_name}.csv"
-
-
-def get_sampler(sampler_name: str):
-    """Initialize requested samplers"""
-    sampler = next((sampler for sampler in samplers.SAMPLERS if sampler.sampler_name == sampler_name), None)
-    if sampler is None:
-        raise ValueError(
-            f"Sampler '{sampler_name}' not found. Available samplers: {[sampler.sampler_name for sampler in samplers.SAMPLERS]}"
-        )
-    return sampler
+    return (
+        results_dir
+        / f"dataset_{dataset.dataset_name}_raw_results_{sampler.sampler_name}.csv"
+    )
 
 
 def clean_results_folder(results_dir: Path = None):
@@ -53,34 +51,34 @@ def clean_results_folder(results_dir: Path = None):
         shutil.rmtree(results_dir)
 
 
-def get_remaining_problems(dataset: datasets.Dataset, sampler: BaseSampler, results_dir: Path = None):
+def get_remaining_problems(
+    dataset: datasets.Dataset, sampler: BaseSampler, results_dir: Path = None
+):
     """In case of failure, only run problems from the dataset that have not been run yet"""
     if results_dir is None:
         results_dir = get_default_results_dir()
     sampler_results_filepath = get_sampler_filepath(sampler, dataset, results_dir)
     if os.path.isdir(results_dir) and os.path.isfile(sampler_results_filepath):
         sampler_results = pd.read_csv(sampler_results_filepath)
-        return dataset.df[~dataset.df["problem"].isin(sampler_results["query"].tolist())]
+        return dataset.df[
+            ~dataset.df["problem"].isin(sampler_results["query"].tolist())
+        ]
     return dataset.df
 
 
-async def process_query_with_semaphore(semaphore, sampler, target_query, target_ground_truth, dataset):
+async def process_query_with_semaphore(
+    semaphore, sampler, target_query, target_ground_truth, dataset
+):
     async with semaphore:
         try:
-            return await sampler(target_query, ground_truth=target_ground_truth, dataset=dataset)
+            return await sampler(
+                target_query, ground_truth=target_ground_truth, dataset=dataset
+            )
         except Exception as e:
-            logging.error(f"Failed to run {sampler.sampler_name} for query: {target_query}")
+            logging.error(
+                f"Failed to run {sampler.sampler_name} for query: {target_query}"
+            )
             raise e
-
-
-def get_dataset(dataset_name):
-    dataset = next((dataset for dataset in datasets.DATASETS if dataset.dataset_name == dataset_name), None)
-    dataset.df = pd.read_csv(dataset.csv_path)
-    if dataset is None:
-        raise ValueError(f"Dataset '{dataset_name}' not recognized, run python src/evals/eval_runner.py --help for available datasets")
-    if dataset.df is None:
-        raise ValueError(f"Failed to initialize df for {dataset_name} and csv_path {dataset.csv_path}")
-    return dataset
 
 
 async def run_evals(
@@ -105,19 +103,27 @@ async def run_evals(
 
     results = {}
     for dataset_name in args.datasets:
-        dataset = get_dataset(dataset_name)
+        dataset = evals_utils.get_dataset(dataset_name)
         if args.limit:
             dataset.df = dataset.df.sample(n=args.limit)
         for sampler_name in args.samplers:
-            sampler = get_sampler(sampler_name)
+            sampler = evals_utils.get_sampler(sampler_name)
             # Only run on problems that are not already in results folder
-            remaining_problems = get_remaining_problems(dataset=dataset, sampler=sampler, results_dir=results_dir)
+            remaining_problems = get_remaining_problems(
+                dataset=dataset, sampler=sampler, results_dir=results_dir
+            )
             if len(remaining_problems) == 0:
-                logging.info(f"No problems remaining for sampler {sampler.sampler_name}, moving on...")
-                results[sampler.sampler_name] = pd.read_csv(get_sampler_filepath(sampler, dataset, results_dir))
+                logging.info(
+                    f"No problems remaining for sampler {sampler.sampler_name}, moving on..."
+                )
+                results[sampler.sampler_name] = pd.read_csv(
+                    get_sampler_filepath(sampler, dataset, results_dir)
+                )
                 continue
 
-            logging.info(f"Running sampler {sampler.sampler_name} on dataset {dataset_name} on {len(remaining_problems)} problems")
+            logging.info(
+                f"Running sampler {sampler.sampler_name} on dataset {dataset_name} on {len(remaining_problems)} problems"
+            )
             dataset.df = remaining_problems
 
             with tqdm(
@@ -150,14 +156,23 @@ async def run_evals(
                     pbar.update(1)
 
                     if len(batch_results) >= args.batch_size:
-                        write_raw_sampler_results(batch_results, sampler, dataset, results_dir)
+                        write_raw_sampler_results(
+                            batch_results, sampler, dataset, results_dir
+                        )
                         batch_results = []
 
                 if batch_results:
-                    write_raw_sampler_results(batch_results, sampler, dataset, results_dir)
+                    write_raw_sampler_results(
+                        batch_results, sampler, dataset, results_dir
+                    )
 
 
-def write_raw_sampler_results(sampler_results: list[str | Any], sampler: BaseSampler, dataset: datasets.Dataset, results_dir: Path = None):
+def write_raw_sampler_results(
+    sampler_results: list[str | Any],
+    sampler: BaseSampler,
+    dataset: datasets.Dataset,
+    results_dir: Path = None,
+):
     """
     Write raw results to a csv file.
 
