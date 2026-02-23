@@ -67,10 +67,6 @@ class SynthesizeAnswer:
                                     "trial": trial,
                                 },
                             )
-                        elif response.status == 402:
-                            print("Rate limit hit")
-                            # TODO: Find a clever way to cut this eval short, but not stop a long chain of evals
-                            quit()
                         else:
                             error_text = await response.text()
                             print(f"ERROR: Failed synthesis after {self.max_retries} retries")
