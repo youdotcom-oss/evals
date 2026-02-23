@@ -1,10 +1,14 @@
 # `evals`: An Evaluation Framework for Search APIs
 
-This repository contains a lightweight evaluation framework for web search and search-augmented APIs. Each API is integrated as a sampler and evaluated across benchmarks that test accuracy, relevance, and information retrieval performance.
+This repository contains evaluation framework for AI-first web search APIs. Each API is integrated as a sampler and evaluated across benchmarks that test accuracy, latency, and information retrieval performance.
 
 The framework supports multiple search providers (You.com, Exa, Perplexity, Tavily, Parallel) and evaluates answers using an LLM judge. Benchmarks include [SimpleQA](https://openai.com/index/introducing-simpleqa/) (factual question answering) and [FRAMES](https://arxiv.org/abs/2409.12941) (deep research and multi-hop reasoning). Additional samplers and datasets can be integrated via the configs (see `src/evals/configs/`).
 
-This code is used to evaluate search APIs in [this You.com blog post](https://you.com/apis).
+
+To learn more about our evals methodology and system architecture, please read You.com's research articles:
+- [How to Evaluate AI Search in the Agentic Era: A Sneak Peek](https://you.com/resources/sneak-peek-how-to-evaluate-ai-search-in-the-agentic-era)
+- [How to Evaluate AI Search for the Agentic Era](https://you.com/resources/how-we-evaluate-ai-search)
+- [Randomness in AI Benchmarks: What Makes an Eval Trustworthy?](https://you.com/resources/randomness-in-ai-benchmarks)
 
 ## Results
 
@@ -54,7 +58,17 @@ Copy the example env file and set the appropriate API keys for the samplers you 
 cp .env.example .env
 ```
 
-Edit `.env` and set the keys for your chosen providers (see [Search API configuration](#search-api-configuration) below).
+Edit `.env` and set the keys for your chosen providers. To run evaluations for a given search API, set the corresponding environment variable to a valid API key, then pass the sampler name via `--samplers`:
+
+| Sampler                     | Environment variable   |
+|-----------------------------|-------------------------|
+| You.com                     | `YOU_API_KEY`           |
+| Exa                         | `EXA_API_KEY`           |
+| Parallel                    | `PARALLEL_API_KEY`      |
+| Perplexity                  | `PERPLEXITY_API_KEY`    |
+| Tavily (basic / advanced)   | `TAVILY_API_KEY`        |
+
+Grading uses an OpenAI model; set `OPENAI_API_KEY` for the LLM judge.
 
 ## Usage
 
@@ -81,21 +95,6 @@ python src/evals/eval_runner.py --samplers you_search_with_livecrawl --datasets 
 # Fresh run: clear existing results and re-run
 python src/evals/eval_runner.py --clean --samplers you_search_with_livecrawl --datasets simpleqa --limit 100
 ```
-
-### Search API configuration
-
-To run evaluations for a given search API, set the corresponding environment variable (e.g. in `.env`) to a valid API key, then pass the sampler name via `--samplers`.
-
-| Sampler                     | Environment variable   |
-|-----------------------------|-------------------------|
-| You.com (Livecrawl)         | `YOU_API_KEY`           |
-| You.com (snippets)          | `YOU_API_KEY`           |
-| Exa                         | `EXA_API_KEY`           |
-| Parallel                    | `PARALLEL_API_KEY`      |
-| Perplexity                  | `PERPLEXITY_API_KEY`    |
-| Tavily (basic / advanced)   | `TAVILY_API_KEY`        |
-
-Grading uses an OpenAI model; set `OPENAI_API_KEY` for the LLM judge.
 
 ### Benchmark suites
 
