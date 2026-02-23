@@ -1,51 +1,148 @@
-# API Evaluations
-This repository provides a framework for running evaluations, including [OpenAI's SimpleQA evaluation](https://openai.com/index/introducing-simpleqa/). 
-This code was used to evaluate the APIs in [this You.com blogpost](https://home.you.com/articles/search-api-for-the-agentic-era).
+# `evals`: An Evaluation Framework for Search APIs
 
-If you would like to reproduce the numbers or add new samplers, follow the instructions on how to install and run the code.
+This repository contains a lightweight evaluation framework for web search and search-augmented APIs. Each API is integrated as a sampler and evaluated across benchmarks that test accuracy, relevance, and information retrieval performance.
+
+The framework supports multiple search providers (You.com, Exa, Perplexity, Tavily, Parallel) and evaluates answers using an LLM judge. Benchmarks include [SimpleQA](https://openai.com/index/introducing-simpleqa/) (factual question answering) and [FRAMES](https://arxiv.org/abs/2409.12941) (deep research and multi-hop reasoning). Additional samplers and datasets can be integrated via the configs (see `src/evals/configs/`).
+
+This code is used to evaluate search APIs in [this You.com blog post](https://you.com/apis).
+
+## Results
+
+Below are evaluation results across different search samplers and benchmark suites. Grading is performed via an LLM judge using prompts aligned with the original benchmarks.
+
+**SimpleQA**
+
+| sampler                  | accuracy | avg_latency_ms |
+|--------------------------|----------|----------------|
+| you_search_with_livecrawl| —        | —              |
+| you_search               | —        | —              |
+| perplexity_search        | —        | —              |
+| exa_search_with_text     | —        | —              |
+| parallel_fast            | —        | —              |
+| tavily_advanced          | —        | —              |
+| tavily_basic             | —        | —              |
+
+**FRAMES**
+
+| sampler                  | accuracy | avg_latency_ms |
+|--------------------------|----------|----------------|
+| you_search_with_livecrawl| —        | —              |
+| you_search               | —        | —              |
+| perplexity_search        | —        | —              |
+| exa_search_with_text     | —        | —              |
+| parallel_fast            | —        | —              |
+| tavily_advanced          | —        | —              |
+| tavily_basic             | —        | —              |
 
 ## Installation
 
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/youdotcom-oss/evals.git
-   cd evals
-   ```
+```bash
+# Clone the repository
+git clone https://github.com/youdotcom-oss/evals.git
+cd evals
 
-2. Create a virtual environment with the tool of your choice, then install the required dependencies:
-   ```bash
-   # create and activate virtual environment
-   pip install -r requirements.txt
-   pip install -e .
-   ```
+# Create a virtual environment, then install
+pip install -r requirements.txt
+pip install -e .
+```
 
-3. Set up your `.env` file and insert the appropriate API keys:
-   ```bash
-   cp .env.example .env
-   ```
+### API keys
 
-## Running a SimpleQA evaluation
-To run a SimpleQA evaluation, simply run the `simpleqa_runner.py` file with your desired arguments.
+Copy the example env file and set the appropriate API keys for the samplers you want to run:
 
-View available arguments and samplers
-   ```bash
-   python src/evals/eval_runner.py --help
-   ```
+```bash
+cp .env.example .env
+```
 
-Run the SimpleQA evaluation on the entire problem set for all available samplers with default settings
-   ```bash
-   python src/evals/eval_runner.py
-   ```
+Edit `.env` and set the keys for your chosen providers (see [Search API configuration](#search-api-configuration) below).
 
-Run the SimpleQA evaluation on just You.com for 5 random problems
-   ```bash
-   python src/evals/eval_runner.py --samplers you_search_with_livecrawl --limit 500
-   ```
+## Usage
 
-## Interpreting Results 
-Results files will be placed in `simpleqa/results` after a successful run of SimpleQA. Files following the pattern
-`raw_results_{sampler}.csv` are the raw results for each individual sampler. The file `simpleqa_results.csv` contains
-aggregated results with various metrics useful for analysis.
+### Basic instructions
 
-Please note that latency numbers include the total time it takes to run the API request on your machine, so your network
-speeds will impact reported numbers and may fluctuate between runs.
+Run evaluations from the command line via the eval runner:
+
+```bash
+# List available samplers and datasets
+python src/evals/eval_runner.py --help
+
+# Run SimpleQA on all samplers (default)
+python src/evals/eval_runner.py
+
+# Run SimpleQA for specific samplers only
+python src/evals/eval_runner.py --samplers you_search_with_livecrawl tavily_basic --datasets simpleqa
+
+# Run FRAMES evaluation
+python src/evals/eval_runner.py --datasets frames
+
+# Run on a limited number of problems (e.g. 100 for a quick sanity check)
+python src/evals/eval_runner.py --samplers you_search_with_livecrawl --datasets simpleqa --limit 100
+
+# Fresh run: clear existing results and re-run
+python src/evals/eval_runner.py --clean --samplers you_search_with_livecrawl --datasets simpleqa --limit 100
+```
+
+### Search API configuration
+
+To run evaluations for a given search API, set the corresponding environment variable (e.g. in `.env`) to a valid API key, then pass the sampler name via `--samplers`.
+
+| Sampler                     | Environment variable   |
+|-----------------------------|-------------------------|
+| You.com (Livecrawl)         | `YOU_API_KEY`           |
+| You.com (snippets)          | `YOU_API_KEY`           |
+| Exa                         | `EXA_API_KEY`           |
+| Parallel                    | `PARALLEL_API_KEY`      |
+| Perplexity                  | `PERPLEXITY_API_KEY`    |
+| Tavily (basic / advanced)   | `TAVILY_API_KEY`        |
+
+Grading uses an OpenAI model; set `OPENAI_API_KEY` for the LLM judge.
+
+### Benchmark suites
+
+| Benchmark | Description | Flag / usage |
+|-----------|-------------|--------------|
+| SimpleQA | Factual question answering ([OpenAI SimpleQA](https://openai.com/index/introducing-simpleqa/)) | `--datasets simpleqa` |
+| FRAMES   | Deep research and multi-hop reasoning ([paper](https://arxiv.org/abs/2409.12941), [dataset](https://huggingface.co/datasets/google/frames-benchmark)) | `--datasets frames` |
+
+### Other configuration options
+
+| Option              | Flag / default        | Description |
+|---------------------|------------------------|-------------|
+| Samplers            | `--samplers <names>`   | One or more sampler names (default: all). |
+| Datasets            | `--datasets <names>`   | One or more datasets: `simpleqa`, `frames` (default: all). |
+| Limit               | `--limit <n>`          | Run on at most `n` problems (optional). |
+| Batch size          | `--batch-size 50`      | Number of problems per batch before writing results (default: 50). |
+| Max concurrent tasks| `--max-concurrent-tasks 10` | Concurrency limit (default: 10). |
+| Clean               | `--clean`              | Remove existing results and run from scratch. |
+
+## Output
+
+Results are written to `src/evals/results/` with the following structure:
+
+```
+src/evals/results/
+├── dataset_simpleqa_raw_results_<sampler_name>.csv   # Per-sampler, per-dataset raw results
+├── dataset_frames_raw_results_<sampler_name>.csv
+└── analyzed_results.csv                               # Aggregated metrics (accuracy, latency)
+```
+
+Raw CSVs contain per-query fields (e.g. query, generated answer, evaluation result, latencies). After a run, `write_metrics()` is called automatically and `analyzed_results.csv` is updated with accuracy and average latency per sampler and dataset.
+
+## Citation
+
+If you use this repository in your research, please consider citing:
+
+```bibtex
+@misc{evals-search-apis,
+  title        = {evals: An Evaluation Framework for AI-first Web Search APIs},
+  author       = {You.com},
+  year         = {2026},
+  journal      = {GitHub repository},
+	publisher    = {GitHub},
+  howpublished = {\url{https://github.com/youdotcom-oss/evals}}
+}
+```
+
+## License
+
+This repository is made available under the [MIT License](LICENSE).
