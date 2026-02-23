@@ -39,7 +39,7 @@ Run the SimpleQA evaluation on the entire problem set for all available samplers
 
 Run the SimpleQA evaluation on just You.com for 5 random problems
    ```bash
-   python src/evals/eval_runner.py --samplers you_unified_search --limit 5
+   python src/evals/eval_runner.py --samplers you_search_livecrawl --limit 500
    ```
 
 ## Interpreting Results 
