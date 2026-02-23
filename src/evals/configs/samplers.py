@@ -10,15 +10,15 @@ from evals.samplers.applied_samplers.you_search_sampler import YouSearchSnippets
 
 SAMPLERS = [
     YouLivecrawlSampler(
-        sampler_name="you_search_livecrawl",
+        sampler_name="you_search_with_livecrawl",
         api_key=os.getenv("YOU_API_KEY"),
     ),
     YouSearchSnippetsSampler(
-        sampler_name="you_search_snippets",
+        sampler_name="you_search",
         api_key=os.getenv("YOU_API_KEY"),
     ),
     ExaSampler(
-        sampler_name="exa_search_with_contents",
+        sampler_name="exa_search_with_text",
         api_key=os.getenv("EXA_API_KEY"),
         text=True,
     ),
