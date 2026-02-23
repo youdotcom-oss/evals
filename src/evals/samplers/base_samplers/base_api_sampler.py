@@ -1,7 +1,7 @@
 from abc import abstractmethod
 from typing import Any, Dict
 
-import requests
+import aiohttp
 
 from evals.samplers.base_samplers.base_sampler import BaseSampler
 
@@ -62,33 +62,34 @@ class BaseAPISampler(BaseSampler):
         """Get provider specific HTTP method"""
         pass
 
-    def get_search_results(self, query: str) -> Any:
-        """Get raw search results from the API"""
+    async def get_search_results(self, query: str) -> Any:
+        """Get raw search results from the API using async HTTP"""
         try:
             self._set_params()
             payload = self._get_payload(query)
 
-            if self.method == "POST":
-                response = requests.post(
-                    self.base_url + self.endpoint,
-                    json=payload,
-                    headers=self.headers,
-                    timeout=self.timeout,
-                )
-            elif self.method == "GET":
-                response = requests.get(
-                    self.base_url + self.endpoint,
-                    params=payload,
-                    headers=self.headers,
-                    timeout=self.timeout,
-                )
-            else:
-                raise ValueError('Unsupported method, please select between ["POST", "GET"]')
+            timeout = aiohttp.ClientTimeout(total=self.timeout)
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                if self.method == "POST":
+                    async with session.post(
+                        self.base_url + self.endpoint,
+                        json=payload,
+                        headers=self.headers,
+                    ) as response:
+                        response.raise_for_status()
+                        data = await response.json()
+                elif self.method == "GET":
+                    async with session.get(
+                        self.base_url + self.endpoint,
+                        params=payload,
+                        headers=self.headers,
+                    ) as response:
+                        response.raise_for_status()
+                        data = await response.json()
+                else:
+                    raise ValueError('Unsupported method, please select between ["POST", "GET"]')
 
-            response.raise_for_status()
-            data = response.json()
-
-            return data
+                return data
         except Exception as e:
             print(f"{self.sampler_name} failed with error {e}")
             raise e

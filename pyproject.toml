@@ -7,7 +7,7 @@ authors = [
 ]
 description = "A repository for running evaluations"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",

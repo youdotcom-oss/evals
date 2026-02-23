@@ -34,7 +34,7 @@ class BaseSampler(ABC):
             self.api_key = None
 
     @abstractmethod
-    def get_search_results(self, query: str) -> Any:
+    async def get_search_results(self, query: str) -> Any:
         """
         Get raw search results from the API or SDK.
 
@@ -87,8 +87,8 @@ class BaseSampler(ABC):
         end_to_end_start_time = time.time()
         # Get raw results
         try:
-            # Run synchronous SDK call in thread pool
-            raw_results = await asyncio.to_thread(self.get_search_results, query)
+            # Call async get_search_results directly
+            raw_results = await self.get_search_results(query)
             if self.sampler_name == "you_search_livecrawl":
                 internal_response_time_ms = round(raw_results["metadata"]["latency"] * 1000, 2)  # Convert to ms
             elif self.sampler_name == "you_search_snippets":
@@ -112,7 +112,7 @@ class BaseSampler(ABC):
         # Synthesize raw results
         try:
             if self.needs_synthesis:
-                generated_answer = synthesizer_utils.synthesize_response(query, formatted_results)
+                generated_answer = await synthesizer_utils.synthesize_response(query, formatted_results)
             else:
                 generated_answer = formatted_results  # Already synthesized by API
 
