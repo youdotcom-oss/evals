@@ -21,3 +21,9 @@ jobs:
 
       - name: Run tests
         run: pytest
+        env:
+          YOU_API_KEY: ${{ secrets.YOU_API_KEY }}
+          EXA_API_KEY: ${{ secrets.EXA_API_KEY }}
+          PARALLEL_API_KEY: ${{ secrets.PARALLEL_API_KEY }}
+          PERPLEXITY_API_KEY: ${{ secrets.PERPLEXITY_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
