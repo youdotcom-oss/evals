@@ -34,7 +34,7 @@ class BaseSampler(ABC):
             self.api_key = None
 
     @abstractmethod
-    def get_search_results(self, query: str) -> Any:
+    async def get_search_results(self, query: str) -> Any:
         """
         Get raw search results from the API or SDK.
 
@@ -112,7 +112,7 @@ class BaseSampler(ABC):
         # Synthesize raw results
         try:
             if self.needs_synthesis:
-                generated_answer = synthesizer_utils.synthesize_response(query, formatted_results)
+                generated_answer = await synthesizer_utils.synthesize_response(query, formatted_results)
             else:
                 generated_answer = formatted_results  # Already synthesized by API
 

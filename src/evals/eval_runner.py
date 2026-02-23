@@ -90,8 +90,8 @@ async def run_evals(
     """
     Run benchmark for each sampler.
 
-    Run the selected number of queries against each requested sampler. Creates tasks in batches, and provides
-    a progress bar to track progress throughout the run.
+    Run the selected number of queries against each requested sampler. Creates all tasks upfront with concurrency
+    controlled by semaphore, and provides a progress bar to track progress throughout the run.
 
     Args:
         args: Command line arguments
@@ -120,37 +120,40 @@ async def run_evals(
             logging.info(f"Running sampler {sampler.sampler_name} on dataset {dataset_name} on {len(remaining_problems)} problems")
             dataset.df = remaining_problems
 
-            # Run problems in batches
             with tqdm(
                 total=len(dataset.df),
                 desc=f"Running sampler: {sampler.sampler_name} for dataset {dataset.dataset_name}",
                 unit="queries",
             ) as pbar:
                 semaphore = asyncio.Semaphore(args.max_concurrent_tasks)
-
-                for i in range(0, len(dataset.df), args.batch_size):
-                    batch_df = dataset.df[i : i + args.batch_size]
-
-                    tasks = []
-                    for _, row in batch_df.iterrows():
-                        query = row["problem"]
-                        ground_truth = row["answer"]
-                        task = asyncio.create_task(
-                            process_query_with_semaphore(
-                                semaphore=semaphore,
-                                sampler=sampler,
-                                target_query=query,
-                                target_ground_truth=ground_truth,
-                                dataset=dataset,
-                            )
+                tasks = []
+                # Create tasks all at once
+                for _, row in dataset.df.iterrows():
+                    query = row["problem"]
+                    ground_truth = row["answer"]
+                    task = asyncio.create_task(
+                        process_query_with_semaphore(
+                            semaphore=semaphore,
+                            sampler=sampler,
+                            target_query=query,
+                            target_ground_truth=ground_truth,
+                            dataset=dataset,
                         )
-                        tasks.append(task)
+                    )
+                    tasks.append(task)
 
-                    batch_results = await asyncio.gather(*tasks, return_exceptions=True)
-                    pbar.update(len(batch_df))
+                batch_results = []
+                # Return results as completed
+                for coroutine in asyncio.as_completed(tasks):
+                    result = await coroutine
+                    batch_results.append(result)
+                    pbar.update(1)
 
-                    await asyncio.gather(*[t for t in tasks if not t.done()])
-                    # Write results of each batch so we can keep progress in case of a failure
+                    if len(batch_results) >= args.batch_size:
+                        write_raw_sampler_results(batch_results, sampler, dataset, results_dir)
+                        batch_results = []
+
+                if batch_results:
                     write_raw_sampler_results(batch_results, sampler, dataset, results_dir)
 
 
@@ -211,13 +214,13 @@ async def main():
         "--batch-size",
         default=50,
         type=int,
-        help="Used to define the batch size used in multiprocessing. Also determines how many problems will be run before appending to corresponding results file",
+        help="Number of results to accumulate before writing to disk (for incremental progress tracking)",
     )
     parser.add_argument(
         "--max-concurrent-tasks",
         default=10,
         type=int,
-        help="Used to define the max count of concurrent tasks to be used in multiprocessing",
+        help="Maximum number of concurrent async tasks (controls parallelism via semaphore)",
     )
     parser.add_argument(
         "--clean",
