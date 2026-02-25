@@ -1,5 +1,4 @@
-import random
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 from evals.samplers.base_samplers.base_api_sampler import (
     BaseAPISampler,
@@ -16,11 +15,6 @@ class YouLivecrawlSampler(BaseAPISampler):
         max_concurrency: int = 10,
         needs_synthesis: bool = True,
     ):
-        if api_key is None:
-            raise ValueError(
-                f"API key not provided for sampler {sampler_name}. Ensure .env file is configured and contains necessary API keys"
-            )
-
         super().__init__(
             sampler_name=sampler_name,
             api_key=api_key,
