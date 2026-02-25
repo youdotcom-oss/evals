@@ -131,7 +131,7 @@ async def test_simpleqa_runner_resume_capability(test_results_cleanup):
     results_dir = get_test_results_dir()
     # Create test arguments for first run (partial)
     args = argparse.Namespace(
-        samplers=["you_search_livecrawl"],
+        samplers=["you_search_with_livecrawl"],
         datasets=["simpleqa"],
         limit=num_problems,
         batch_size=5,

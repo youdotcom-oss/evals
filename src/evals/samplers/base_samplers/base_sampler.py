@@ -87,11 +87,11 @@ class BaseSampler(ABC):
         end_to_end_start_time = time.time()
         # Get raw results
         try:
-            # Call async get_search_results directly
-            raw_results = await self.get_search_results(query)
-            if self.sampler_name == "you_search_livecrawl":
+            # Run synchronous SDK call in thread pool
+            raw_results = await asyncio.to_thread(self.get_search_results, query)
+            if self.sampler_name == "you_search_with_livecrawl":
                 internal_response_time_ms = round(raw_results["metadata"]["latency"] * 1000, 2)  # Convert to ms
-            elif self.sampler_name == "you_search_snippets":
+            elif self.sampler_name == "you_search":
                 internal_response_time_ms = round(raw_results.metadata.latency * 1000, 2)  # Convert to ms
             elif "tavily" in self.sampler_name:
                 internal_response_time_ms = round(raw_results["response_time"] * 1000, 2)  # Convert to ms
