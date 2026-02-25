@@ -152,7 +152,6 @@ If you use this repository in your research, please consider citing:
 
 This repository is made available under the [MIT License](LICENSE).
 
-## Notes
 
 [^1]: Search results are fetched from each search API, then synthesized into a single answer using an LLM; the answer is graded by an LLM judge. Synthesis uses gpt-4o-mini and grading uses gpt-4.1 (configurable in `src/evals/constants.py`).
 [^2]: Grading uses prompts aligned with the standard benchmarks as specified in the original papers or repositories (e.g. [SimpleQA](https://openai.com/index/introducing-simpleqa/) and [FRAMES](https://arxiv.org/abs/2409.12941).
