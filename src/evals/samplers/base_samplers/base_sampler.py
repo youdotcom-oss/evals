@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import asyncio
 import logging
 import time
 from typing import Any, Dict
@@ -20,18 +19,12 @@ class BaseSampler(ABC):
         max_concurrency: int = 10,
         needs_synthesis: bool = True,
     ):
+        self.api_key = api_key
         self.sampler_name = sampler_name
         self.timeout = timeout
         self.max_retries = max_retries
         self.max_concurrency = max_concurrency
         self.needs_synthesis = needs_synthesis
-
-        if api_key:
-            self.api_key = api_key
-        else:
-            # You do not want to raise an error here, or else you can not run an eval without ALL env variables
-            print(f'API Key for sampler "{sampler_name}" is not set')
-            self.api_key = None
 
     @abstractmethod
     async def get_search_results(self, query: str) -> Any:
@@ -71,12 +64,25 @@ class BaseSampler(ABC):
         return str(message_list)
 
     @staticmethod
-    async def __evaluate_response(query: str, ground_truth: str, generated_answer: str, dataset: datasets.Dataset) -> Dict[str, Any]:
+    async def __evaluate_response(
+        query: str, ground_truth: str, generated_answer: str, dataset: datasets.Dataset
+    ) -> Dict[str, Any]:
         """Evaluate the generated response against ground truth"""
         return await dataset.grader(query, ground_truth, generated_answer)
 
-    async def __call__(self, query_input, dataset: dict, ground_truth: str = "", overwrite: bool = False) -> Dict[str, Any]:
+    async def __call__(
+        self,
+        query_input,
+        dataset: dict,
+        ground_truth: str = "",
+        overwrite: bool = False,
+    ) -> Dict[str, Any]:
         """Main execution pipeline"""
+        if not self.api_key:
+            raise ValueError(
+                f"API key not provided for sampler {self.sampler_name}. Ensure .env file is configured and contains necessary API keys"
+            )
+
         internal_response_time_ms = None
         end_to_end_time_ms = None
         if isinstance(query_input, list):
@@ -87,21 +93,31 @@ class BaseSampler(ABC):
         end_to_end_start_time = time.time()
         # Get raw results
         try:
-            # Run synchronous SDK call in thread pool
-            raw_results = await asyncio.to_thread(self.get_search_results, query)
+            raw_results = await self.get_search_results(query)
             if self.sampler_name == "you_search_with_livecrawl":
-                internal_response_time_ms = round(raw_results["metadata"]["latency"] * 1000, 2)  # Convert to ms
+                internal_response_time_ms = round(
+                    raw_results["metadata"]["latency"] * 1000, 2
+                )  # Convert to ms
             elif self.sampler_name == "you_search":
-                internal_response_time_ms = round(raw_results.metadata.latency * 1000, 2)  # Convert to ms
+                internal_response_time_ms = round(
+                    raw_results.metadata.latency * 1000, 2
+                )  # Convert to ms
             elif "tavily" in self.sampler_name:
-                internal_response_time_ms = round(raw_results["response_time"] * 1000, 2)  # Convert to ms
+                internal_response_time_ms = round(
+                    raw_results["response_time"] * 1000, 2
+                )  # Convert to ms
             elif "perplexity" in self.sampler_name:
                 # Perplexity is often empty
                 internal_response_time_ms = raw_results.server_time
 
             formatted_results = self.format_results(raw_results)
         except Exception as e:
-            raw_results, internal_response_time_ms, end_to_end_time_ms, formatted_results = (
+            (
+                raw_results,
+                internal_response_time_ms,
+                end_to_end_time_ms,
+                formatted_results,
+            ) = (
                 "FAILED",
                 "FAILED",
                 "FAILED",
@@ -112,12 +128,16 @@ class BaseSampler(ABC):
         # Synthesize raw results
         try:
             if self.needs_synthesis:
-                generated_answer = await synthesizer_utils.synthesize_response(query, formatted_results)
+                generated_answer = await synthesizer_utils.synthesize_response(
+                    query, formatted_results
+                )
             else:
                 generated_answer = formatted_results  # Already synthesized by API
 
             end_to_end_end_time = time.time()
-            end_to_end_time_ms = round((end_to_end_end_time - end_to_end_start_time) * 1000, 2)
+            end_to_end_time_ms = round(
+                (end_to_end_end_time - end_to_end_start_time) * 1000, 2
+            )
         except Exception as e:
             generated_answer = "FAILED"
             logging.exception(e)
@@ -125,7 +145,9 @@ class BaseSampler(ABC):
         # Evaluated synthesized results against ground truth
         try:
             if ground_truth:
-                evaluation_result_dict = await self.__evaluate_response(query, ground_truth, generated_answer, dataset)
+                evaluation_result_dict = await self.__evaluate_response(
+                    query, ground_truth, generated_answer, dataset
+                )
                 evaluation_result = evaluation_result_dict["score_name"]
             else:
                 raise ValueError("Ground truth is missing")
