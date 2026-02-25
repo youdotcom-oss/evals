@@ -15,7 +15,7 @@ class ParallelSearchSampler(BaseSDKSampler):
         api_key: str = None,
         timeout: float = 60.0,
         max_characters: int | None = None,
-        mode: str = "fast",
+        mode: str = "one-shot",
         max_concurrency: int = 10,
     ):
         self.max_characters = max_characters

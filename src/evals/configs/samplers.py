@@ -23,9 +23,9 @@ SAMPLERS = [
         text=True,
     ),
     ParallelSearchSampler(
-        sampler_name="parallel_fast",
+        sampler_name="parallel_search_one_shot",
         api_key=os.getenv("PARALLEL_API_KEY"),
-        mode="fast",
+        mode="one-shot",
     ),
     PerplexitySearchSampler(
         sampler_name="perplexity_search",

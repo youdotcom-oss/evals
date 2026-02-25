@@ -18,25 +18,25 @@ Below are evaluation results across different search samplers and benchmark suit
 
 | sampler                  | accuracy | avg_latency_ms |
 |--------------------------|----------|----------------|
-| you_search_with_livecrawl| —        | —              |
-| you_search               | —        | —              |
-| perplexity_search        | —        | —              |
-| exa_search_with_text     | —        | —              |
-| parallel_fast            | —        | —              |
-| tavily_advanced          | —        | —              |
-| tavily_basic             | —        | —              |
+| you_search_with_livecrawl| 94.15%   | 1158.12        |
+| you_search               | 85.69%   | 711.59         |
+| perplexity_search        | -        | —              |
+| exa_search_with_text     | 91.79%   | 1403.72        |
+| parallel_search_one_shot | —        | —              |
+| tavily_advanced          | 91.66%   | 2677.22        |
+| tavily_basic             | 61.42%   | 1499.55        |
 
 **FRAMES**
 
 | sampler                  | accuracy | avg_latency_ms |
 |--------------------------|----------|----------------|
-| you_search_with_livecrawl| —        | —              |
-| you_search               | —        | —              |
+| you_search_with_livecrawl| 68.93%   | 938.25         |
+| you_search               | 40.17%   | 620.2          |
 | perplexity_search        | —        | —              |
-| exa_search_with_text     | —        | —              |
-| parallel_fast            | —        | —              |
-| tavily_advanced          | —        | —              |
-| tavily_basic             | —        | —              |
+| exa_search_with_text     | 47.82%   | 1464.63        |
+| parallel_search_one_shot | —        | —              |
+| tavily_advanced          | 50.55%   | 2690.5         |
+| tavily_basic             | 32.35%   | 2201.62        |
 
 ## Installation
 
