@@ -16,27 +16,32 @@ Below are evaluation results across different search samplers and benchmark suit
 
 **SimpleQA**
 
-| sampler                  | accuracy | avg_latency_ms |
-|--------------------------|----------|----------------|
-| you_search_with_livecrawl| 94.15%   | 1158.12        |
-| you_search               | 85.69%   | 711.59         |
-| perplexity_search        | -        | —              |
-| exa_search_with_text     | 91.79%   | 1403.72        |
-| parallel_search_one_shot | —        | —              |
-| tavily_advanced          | 91.66%   | 2677.22        |
-| tavily_basic             | 61.42%   | 1499.55        |
+| sampler                   | accuracy | avg_latency_ms |
+|---------------------------|----------|----------------|
+| exa_search_with_text      | 91.79%   | 1403.72        |
+| google_serp               | 83.01%   | 2050.33        |
+| parallel_search_one_shot  | 92.05%   | 3549.39        |
+| perplexity_search         | 93.76%   | **339.38**         |
+| tavily_advanced           | 91.66%   | 2677.22        |
+| tavily_basic              | 61.42%   | 1499.55        |
+| you_search                | 85.69%   | 711.59         |
+| you_search_with_livecrawl | **94.15%**   | 1158.12        |
+
 
 **FRAMES**
 
-| sampler                  | accuracy | avg_latency_ms |
-|--------------------------|----------|----------------|
-| you_search_with_livecrawl| 68.93%   | 938.25         |
-| you_search               | 40.17%   | 620.2          |
-| perplexity_search        | —        | —              |
-| exa_search_with_text     | 47.82%   | 1464.63        |
-| parallel_search_one_shot | —        | —              |
-| tavily_advanced          | 50.55%   | 2690.5         |
-| tavily_basic             | 32.35%   | 2201.62        |
+| sampler                   | accuracy | avg_latency_ms |
+|---------------------------|----------|----------------|
+| exa_search_with_text      | 47.82%   | 1464.63        |
+| google_serp               | 36.65%   | 2211.16        |
+| parallel_search_one_shot  | 48.06%   | 3635.09        |
+| perplexity_search         | 46%      | **508.77**         |
+| tavily_advanced           | 50.55%   | 2690.5         |
+| tavily_basic              | 32.35%   | 2201.62        |
+| you_search                | 40.17%   | 620.2          |
+| you_search_with_livecrawl | **68.93%**   | 938.25         |
+
+
 
 ## Installation
 
@@ -63,6 +68,7 @@ Edit `.env` and set the keys for your chosen providers. To run evaluations for a
 | Sampler                     | Environment variable   |
 |-----------------------------|-------------------------|
 | You.com                     | `YOU_API_KEY`           |
+| Google                      | `SERP_API_KEY`           |
 | Exa                         | `EXA_API_KEY`           |
 | Parallel                    | `PARALLEL_API_KEY`      |
 | Perplexity                  | `PERPLEXITY_API_KEY`    |
