@@ -1,7 +1,6 @@
 """Tests for SimpleQA evaluation runner"""
 
 import argparse
-import asyncio
 import os
 from pathlib import Path
 import shutil
@@ -14,7 +13,9 @@ from evals.eval_runner import (
     run_evals,
     get_sampler_filepath,
 )
+from evals import utils as evals_utils
 from evals.eval_results_analyzer import write_metrics
+from evals.configs import samplers
 
 
 dotenv.load_dotenv()
@@ -57,11 +58,11 @@ async def test_simpleqa_runner(test_results_cleanup):
     num_problems = 10
     results_dir = get_test_results_dir()
     args = argparse.Namespace(
-        samplers=["you_unified_search", "exa_search_with_text", "tavily_basic", "tavily_advanced", "serp_google"],
-        csv_path="data/simple_qa.csv",
+        samplers=[sampler.sampler_name for sampler in samplers.SAMPLERS],
+        datasets=["simpleqa"],
         limit=num_problems,  # Test with small subset for speed
-        batch_size=5,
-        max_concurrent_tasks=5,
+        batch_size=10,
+        max_concurrent_tasks=10,
         num_results=5,
         clean=True,
     )
@@ -69,34 +70,52 @@ async def test_simpleqa_runner(test_results_cleanup):
     # Run the evaluation
     await run_evals(args, results_dir=results_dir)
     for sampler in args.samplers:
-        # Verify results file was created
-        results_filepath = get_sampler_filepath(sampler, results_dir)
-        assert os.path.isfile(results_filepath), f"Results file not created at {results_filepath}"
+        sampler = evals_utils.get_sampler(sampler)
+        dataset = evals_utils.get_dataset(args.datasets[0])
+        results_filepath = get_sampler_filepath(sampler, dataset, results_dir)
+        assert os.path.isfile(
+            results_filepath
+        ), f"Results file not created at {results_filepath}"
 
         # Read and verify results
         df_results = pd.read_csv(results_filepath)
 
         # Check expected columns exist
-        expected_columns = ["query", "response_time_ms", "evaluation_result"]
+        expected_columns = [
+            "query",
+            "internal_response_time_ms",
+            "end_to_end_time_ms",
+            "evaluation_result",
+        ]
         for col in expected_columns:
-            assert col in df_results.columns, f"Expected column '{col}' not found in results"
+            assert (
+                col in df_results.columns
+            ), f"Expected column '{col}' not found in results"
 
         # Verify we got results for the queries
-        assert len(df_results) == num_problems, f"Expected {num_problems} results, got {len(df_results)}"
+        assert (
+            len(df_results) == num_problems
+        ), f"Expected {num_problems} results, got {len(df_results)}"
 
         # Verify all queries have non-null values
         assert df_results["query"].notna().all(), "Some queries are null"
 
         # Write and verify metrics
         write_metrics(results_dir)
-        metrics_path = results_dir / "simpleqa_results.csv"
+        metrics_path = results_dir / "analyzed_results.csv"
         assert os.path.isfile(metrics_path), "Metrics file not created"
 
         df_metrics = pd.read_csv(metrics_path)
-        assert len(df_metrics) == len(args.samplers), f"Expected {len(args.samplers)} sampler in metrics"
-        assert df_metrics["provider"].drop_duplicates().tolist().sort() == args.samplers.sort()
+        assert len(df_metrics) == len(
+            args.samplers
+        ), f"Expected {len(args.samplers)} sampler in metrics"
+        assert (
+            df_metrics["provider"].drop_duplicates().tolist().sort()
+            == args.samplers.sort()
+        )
         assert "accuracy_score" in df_metrics.columns
-        assert "p50_latency" in df_metrics.columns
+        assert "avg_internal_latency" in df_metrics.columns
+        assert "avg_end_to_end_latency" in df_metrics.columns
         assert "problem_count" in df_metrics.columns
 
 
@@ -112,8 +131,8 @@ async def test_simpleqa_runner_resume_capability(test_results_cleanup):
     results_dir = get_test_results_dir()
     # Create test arguments for first run (partial)
     args = argparse.Namespace(
-        samplers=["you_unified_search"],
-        csv_path="data/simple_qa.csv",
+        samplers=["you_search_livecrawl"],
+        datasets=["simpleqa"],
         limit=num_problems,
         batch_size=5,
         max_concurrent_tasks=5,
@@ -124,19 +143,25 @@ async def test_simpleqa_runner_resume_capability(test_results_cleanup):
     # First run
     await run_evals(args, results_dir=results_dir)
     for sampler in args.samplers:
-        results_filepath = get_sampler_filepath(sampler, results_dir)
+        sampler = evals_utils.get_sampler(sampler)
+        dataset = evals_utils.get_dataset(args.datasets[0])
+        results_filepath = get_sampler_filepath(sampler, dataset, results_dir)
         df_first = pd.read_csv(results_filepath)
         first_run_count = len(df_first)
-        assert first_run_count == num_problems, f"Expected {num_problems} results from first run, got {first_run_count}"
+        assert (
+            first_run_count == num_problems
+        ), f"Expected {num_problems} results from first run, got {first_run_count}"
 
     # Second run with more queries (should add new results)
     args.limit = 5
     args.clean = False  # Don't clean, resume from existing
     await run_evals(args, results_dir=results_dir)
     for sampler in args.samplers:
-        results_filepath = get_sampler_filepath(sampler, results_dir)
+        sampler = evals_utils.get_sampler(sampler)
+        dataset = evals_utils.get_dataset(args.datasets[0])
+        results_filepath = get_sampler_filepath(sampler, dataset, results_dir)
         df_second = pd.read_csv(results_filepath)
         second_run_count = len(df_second)
-        assert second_run_count == num_problems + args.limit, (
-            f"Expected {num_problems} total results after second run, got {second_run_count}"
-        )
+        assert (
+            second_run_count == num_problems + args.limit
+        ), f"Expected {num_problems} total results after second run, got {second_run_count}"

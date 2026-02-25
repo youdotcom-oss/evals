@@ -1,6 +1,7 @@
 import os
 
 from evals.samplers.applied_samplers.exa_sampler import ExaSampler
+from evals.samplers.applied_samplers.google_sampler import GoogleSampler
 from evals.samplers.applied_samplers.parallel_sampler import ParallelSearchSampler
 from evals.samplers.applied_samplers.perplexity_sampler import PerplexitySearchSampler
 from evals.samplers.applied_samplers.tavily_sampler import TavilySampler
@@ -21,6 +22,10 @@ SAMPLERS = [
         sampler_name="exa_search_with_text",
         api_key=os.getenv("EXA_API_KEY"),
         text=True,
+    ),
+    GoogleSampler(
+        sampler_name="google_search",
+        api_key=os.getenv("SERP_API_KEY"),
     ),
     ParallelSearchSampler(
         sampler_name="parallel_search_one_shot",
