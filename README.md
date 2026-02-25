@@ -67,12 +67,13 @@ Edit `.env` and set the keys for your chosen providers. To run evaluations for a
 
 | Sampler                     | Environment variable   |
 |-----------------------------|-------------------------|
-| You.com                     | `YOU_API_KEY`           |
-| Google                      | `SERP_API_KEY`           |
 | Exa                         | `EXA_API_KEY`           |
+| Google                      | `SERP_API_KEY`           |
 | Parallel                    | `PARALLEL_API_KEY`      |
 | Perplexity                  | `PERPLEXITY_API_KEY`    |
 | Tavily (basic / advanced)   | `TAVILY_API_KEY`        |
+| You.com                     | `YOU_API_KEY`           |
+
 
 Grading uses an OpenAI model; set `OPENAI_API_KEY` for the LLM judge.
 
