@@ -8,7 +8,7 @@ calculate performance metrics, and generate summary reports.
 import glob
 import os
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Optional
 
 import pandas as pd
 
@@ -48,14 +48,24 @@ def write_metrics(results_dir: Optional[Path] = None):
     metric_rows = []
 
     for sampler_results_file in files:
-        dataset_name = sampler_results_file.split("dataset_")[1].split("_raw_results")[0]
+        dataset_name = sampler_results_file.split("dataset_")[1].split("_raw_results")[
+            0
+        ]
         sampler_name = sampler_results_file.split("raw_results_")[-1].split(".")[0]
         df_sampler_results = pd.read_csv(sampler_results_file)
-        successful_df = df_sampler_results[df_sampler_results["generated_answer"] != "FAILED"]
+        successful_df = df_sampler_results[
+            df_sampler_results["generated_answer"] != "FAILED"
+        ]
 
-        avg_internal_latency = pd.to_numeric(successful_df["internal_response_time_ms"], errors="coerce").mean()
-        avg_end_to_end_latency = pd.to_numeric(successful_df["end_to_end_time_ms"], errors="coerce").mean()
-        correct = len(df_sampler_results[df_sampler_results["evaluation_result"] == "is_correct"])
+        avg_internal_latency = pd.to_numeric(
+            successful_df["internal_response_time_ms"], errors="coerce"
+        ).mean()
+        avg_end_to_end_latency = pd.to_numeric(
+            successful_df["end_to_end_time_ms"], errors="coerce"
+        ).mean()
+        correct = len(
+            df_sampler_results[df_sampler_results["evaluation_result"] == "is_correct"]
+        )
         count_answered = len(successful_df)
 
         if count_answered == 0:
@@ -63,17 +73,21 @@ def write_metrics(results_dir: Optional[Path] = None):
 
         accuracy_score = round((correct / count_answered) * 100, 2)
 
-        metric_rows.append({
-            "provider": sampler_name,
-            "dataset": dataset_name,
-            "accuracy_score": accuracy_score,
-            "avg_internal_latency": round(float(avg_internal_latency), 2),
-            "avg_end_to_end_latency": round(float(avg_end_to_end_latency), 2),
-            "problem_count": count_answered,
-        })
+        metric_rows.append(
+            {
+                "provider": sampler_name,
+                "dataset": dataset_name,
+                "accuracy_score": accuracy_score,
+                "avg_internal_latency": round(float(avg_internal_latency), 2),
+                "avg_end_to_end_latency": round(float(avg_end_to_end_latency), 2),
+                "problem_count": count_answered,
+            }
+        )
 
     write_path = results_dir / "analyzed_results.csv"
-    metric_df = pd.DataFrame(metric_rows).sort_values(["dataset", "accuracy_score"], ascending=False)
+    metric_df = pd.DataFrame(metric_rows).sort_values(
+        ["dataset", "accuracy_score"], ascending=False
+    )
     metric_df.to_csv(write_path, index=False)
     print(f"Results were written to {write_path}")
     print(metric_df)

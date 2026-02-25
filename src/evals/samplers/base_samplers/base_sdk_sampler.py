@@ -79,7 +79,7 @@ class BaseSDKSampler(BaseSampler):
             # Run synchronous SDK call in thread pool with timeout
             result = await asyncio.wait_for(
                 asyncio.to_thread(self._get_search_results_impl, query),
-                timeout=self.timeout
+                timeout=self.timeout,
             )
             return result
         except asyncio.TimeoutError:
