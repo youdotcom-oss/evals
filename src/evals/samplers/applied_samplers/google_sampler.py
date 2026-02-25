@@ -1,30 +1,30 @@
-import os
 from typing import Any, Dict
 
-from simpleqa.sampler.base_sampler import BaseSampler
+from evals.samplers.base_samplers.base_api_sampler import BaseAPISampler
 
 
-class SerpApiGoogleSampler(BaseSampler):
-
-    @property
-    def needs_synthesis(self) -> bool:
-        return True  # Search provider, needs answer synthesis
-
+class GoogleSampler(BaseAPISampler):
     def __init__(
         self,
         sampler_name: str,
-        max_retries: int = 3,
+        api_key: str = None,
         timeout: float = 60.0,
-        num_results: int = 5,
-        custom_args: Dict[str, Any] | None = None,
+        max_retries: int = 3,
+        max_concurrency: int = 10,
+        needs_synthesis: bool = True,
     ):
+        if api_key is None:
+            raise ValueError(
+                f"API key not provided for sampler {sampler_name}. Ensure .env file is configured and contains necessary API keys"
+            )
+
         super().__init__(
-            sampler_name,
-            os.getenv("SERP_API_KEY"),
-            max_retries,
-            timeout,
-            num_results,
-            custom_args,
+            sampler_name=sampler_name,
+            api_key=api_key,
+            max_retries=max_retries,
+            timeout=timeout,
+            max_concurrency=max_concurrency,
+            needs_synthesis=needs_synthesis,
         )
 
     @staticmethod
@@ -33,7 +33,7 @@ class SerpApiGoogleSampler(BaseSampler):
 
     @staticmethod
     def _get_endpoint() -> str:
-        return "search/"
+        return "/search"
 
     @staticmethod
     def _get_method() -> str:
@@ -42,18 +42,15 @@ class SerpApiGoogleSampler(BaseSampler):
     def _get_headers(self) -> Dict[str, str]:
         return {}
 
-    def _get_payload(
-        self, query: str, custom_args: Dict[str, Any] | None = None
-    ) -> Dict[str, Any]:
+    def _get_payload(self, query: str) -> Dict[str, Any]:
         return {
             "q": query,
             "engine": "google",
-            "num": self.num_results,
+            "num": 10,
             "api_key": self.api_key,
         }
 
-    @staticmethod
-    def __format_context__(results: Any) -> str:
+    def format_results(self, results: Any) -> list[str]:
         formatted_results = []
         if "organic_results" in results:
             for result in results["organic_results"]:
@@ -64,4 +61,4 @@ class SerpApiGoogleSampler(BaseSampler):
                     if snippet and isinstance(snippet, list):
                         snippet = " ".join(snippet)
                     formatted_results.append(f"[{title}]({link})\n snippet: {snippet}")
-        return "\n---\n".join(formatted_results)
+        return formatted_results

@@ -1,21 +1,18 @@
+# We used a weaker model for synthesis and a stronger model for grading to ensure fairness.
+SYNTHESIS_MODEL = "gpt-4o-mini"
+GRADER_MODEL = "gpt-4.1"
+
+# Maximum tokens available for search results (leaving room for prompt and response)
+MAX_SEARCH_RESULT_TOKENS = 127750
+
+SYNTHESIS_PROMPT = """
+    You are an AI assistant that answers questions using search results.
+    Read the provided search snippets carefully and answer based only on information found in the snippets.
+    Keep your response clear and concise.
 """
-This class is used to evaluate the correctness of the response. No changes have been made to the grading prompt.
-
-To view or edit the model used for grading, see evals.simpleqa.constants
-"""
-
-import asyncio
-import logging
-import os
-import re
-from typing import Dict, Any
-
-import httpx
-
-from simpleqa import constants
 
 # Prompt is from OpenAI's simple-evals repository https://github.com/openai/simple-evals/blob/ee3b0318d8d1d9d72755a4120879be65f7c07e9e/simpleqa_eval.py#L13
-ANSWER_GRADER_TEMPLATE = """
+SIMPLEQA_ANSWER_GRADER_TEMPLATE = """
 Your job is to look at a question, a gold target, and a predicted answer, and then assign a grade of either ["CORRECT", "INCORRECT", "NOT_ATTEMPTED"].
 First, I will give examples of each grade, and then you will grade a new example.
 
@@ -96,89 +93,42 @@ C: NOT_ATTEMPTED
 Just return the letters "A", "B", or "C", with no text around it.
 """.strip()
 
+FRAMES_ANSWER_GRADER_TEMPLATE = """
+===Task===
 
-class AnswerGrader:
-    def __init__(self, model: str = constants.GRADER_MODEL, max_retries: int = 3):
-        self.logger = logging.getLogger(self.__class__.__name__)
 
-        self.model = model
-        self.max_retries = max_retries
-        self.api_key = os.getenv("OPENAI_API_KEY")
-        self.headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
+I need your help in evaluating an answer provided by an LLM against a ground truth
+answer. Your task is to determine if the ground truth answer is present in the LLM’s response.
+Please analyze the provided data and make a decision.
 
-    async def call_openai_async(self, client: httpx.AsyncClient, prompt: str) -> str:
-        """Make async call to OpenAI API"""
-        for trial in range(self.max_retries + 1):
-            try:
-                payload = {
-                    "model": self.model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "temperature": 0.0,
-                    "max_tokens": 1024,
-                }
 
-                response = await client.post(
-                    "https://api.openai.com/v1/chat/completions",
-                    headers=self.headers,
-                    json=payload,
-                )
+===Instructions===
 
-                if response.status_code == 200:
-                    result = response.json()
-                    content = result["choices"][0]["message"]["content"]
-                    if content is None:
-                        raise ValueError("OpenAI API returned empty response")
-                    return content
-                else:
-                    raise Exception(
-                        f"API error {response.status_code}: {response.text}"
-                    )
 
-            except Exception as e:
-                if trial >= self.max_retries:
-                    self.logger.error(f"Failed after {self.max_retries} retries: {e}")
-                    raise
+1. Carefully compare the "Predicted Answer" with the "Ground Truth Answer".
+2. Consider the substance of the answers – look for equivalent information or correct answers. Do
+not focus on exact wording unless the exact wording is crucial to the meaning.
+3. Your final decision should be based on whether the meaning and the vital facts of the "Ground
+Truth Answer" are present in the "Predicted Answer:"
 
-                backoff = 2**trial
-                self.logger.warning(f"Evaluation retry {trial + 1} in {backoff}s: {e}")
-                await asyncio.sleep(backoff)
 
-        raise ValueError("Failed to call OpenAI API")
+===Input Data===
 
-    async def evaluate_single(
-        self, question: str, target: str, predicted_answer: str
-    ) -> Dict[str, Any]:
-        """Evaluate a single response asynchronously"""
-        grader_prompt = ANSWER_GRADER_TEMPLATE.format(
-            question=question,
-            target=target,
-            predicted_answer=predicted_answer,
-        )
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            grading_response = await self.call_openai_async(client, grader_prompt)
+- Question: {question}
 
-        # Parse the grade
-        match = re.search(r"(A|B|C)", grading_response)
-        grade_letter = match.group(0) if match else "C"
 
-        # Convert to readable format
-        score_name = {"A": "is_correct", "B": "is_incorrect", "C": "is_not_attempted"}[
-            grade_letter
-        ]
+- Predicted Answer: {predicted_answer}
 
-        is_correct = grade_letter == "A"
-        is_incorrect = grade_letter == "B"
-        is_not_attempted = grade_letter == "C"
 
-        return {
-            "grade": grade_letter,
-            "score_name": score_name,
-            "is_correct": is_correct,
-            "is_incorrect": is_incorrect,
-            "is_not_attempted": is_not_attempted,
-            "score": is_correct,
-        }
+- Ground Truth Answer: {target}
+
+
+===Output Format===
+
+
+Provide your final evaluation in the following format:
+"Explanation:" (How you made the decision?)
+"Decision:" ("TRUE" or "FALSE")
+Please proceed with the evaluation.
+"""

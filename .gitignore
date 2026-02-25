@@ -6,7 +6,8 @@ venv/
 venv*
 
 # Files
-src/simpleqa/results/*
+src/evals/results/*
+tests/results/*
 
 # Environment Variables
 .env
