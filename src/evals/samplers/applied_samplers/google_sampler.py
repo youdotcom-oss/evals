@@ -13,11 +13,6 @@ class GoogleSampler(BaseAPISampler):
         max_concurrency: int = 10,
         needs_synthesis: bool = True,
     ):
-        if api_key is None:
-            raise ValueError(
-                f"API key not provided for sampler {sampler_name}. Ensure .env file is configured and contains necessary API keys"
-            )
-
         super().__init__(
             sampler_name=sampler_name,
             api_key=api_key,
