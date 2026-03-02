@@ -1,4 +1,3 @@
-import os
 from typing import Any
 
 from perplexity import Perplexity
@@ -25,9 +24,6 @@ class PerplexitySearchSampler(BaseSDKSampler):
             timeout=timeout,
             max_concurrency=max_concurrency,
         )
-
-        if api_key is None:
-            print("No API key provided for Perplexity")
 
     def _initialize_client(self):
         """Initialize Perplexity SDK client"""
