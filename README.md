@@ -23,8 +23,8 @@ Below are evaluation results across different search samplers and benchmark suit
 
 | sampler                   | accuracy | avg_latency_ms |
 |---------------------------|----------|----------------|
-| you_search                | 85.69%   | 711.59         |
 | you_search_with_livecrawl | **94.15%**   | 1158.12        |
+| you_search                | 85.69%   | 711.59         |
 | exa_search_with_text      | 91.79%   | 1403.72        |
 | google_serp               | 83.01%   | 2050.33        |
 | parallel_search_one_shot  | 92.05%   | 3549.39        |
@@ -37,8 +37,8 @@ Below are evaluation results across different search samplers and benchmark suit
 
 | sampler                   | accuracy | avg_latency_ms |
 |---------------------------|----------|----------------|
-| you_search                | 40.17%   | 620.2          |
 | you_search_with_livecrawl | **68.93%**   | 938.25         |
+| you_search                | 40.17%   | 620.2          |
 | exa_search_with_text      | 47.82%   | 1464.63        |
 | google_serp               | 36.65%   | 2211.16        |
 | parallel_search_one_shot  | 48.06%   | 3635.09        |
@@ -61,7 +61,7 @@ Below are evaluation results across different search samplers and benchmark suit
 git clone https://github.com/youdotcom-oss/evals.git
 cd evals
 
-# Create a virtual environment, then install
+# Create and activate a virtual environment of your choosing, then install requirements
 pip install -r requirements.txt
 pip install -e .
 ```
