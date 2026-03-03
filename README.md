@@ -10,6 +10,11 @@ To learn more about our evals methodology and system architecture, please read Y
 - [How to Evaluate AI Search for the Agentic Era](https://you.com/resources/how-we-evaluate-ai-search)
 - [Randomness in AI Benchmarks: What Makes an Eval Trustworthy?](https://you.com/resources/randomness-in-ai-benchmarks)
 
+To get started with You.com APIs, visit our [quickstart guide](https://docs.you.com/quickstart) that will help you create an API key and introduce you to our APIs.
+- [Search API Documentation](https://docs.you.com/api-reference/search/v1-search)
+- [Supported tools and integrations](https://docs.you.com/build-with-agents/mcp-server)
+
+
 ## Results
 
 Below are evaluation results across different search samplers and benchmark suites. Grading is performed via an LLM judge using prompts from the standard benchmarks (as specified in the original papers or repositories).[^2]
@@ -18,30 +23,36 @@ Below are evaluation results across different search samplers and benchmark suit
 
 | sampler                   | accuracy | avg_latency_ms |
 |---------------------------|----------|----------------|
+| you_search                | 85.69%   | 711.59         |
+| you_search_with_livecrawl | **94.15%**   | 1158.12        |
 | exa_search_with_text      | 91.79%   | 1403.72        |
 | google_serp               | 83.01%   | 2050.33        |
 | parallel_search_one_shot  | 92.05%   | 3549.39        |
 | perplexity_search         | 93.76%   | **339.38**         |
 | tavily_advanced           | 91.66%   | 2677.22        |
 | tavily_basic              | 61.42%   | 1499.55        |
-| you_search                | 85.69%   | 711.59         |
-| you_search_with_livecrawl | **94.15%**   | 1158.12        |
 
 
 **FRAMES**
 
 | sampler                   | accuracy | avg_latency_ms |
 |---------------------------|----------|----------------|
+| you_search                | 40.17%   | 620.2          |
+| you_search_with_livecrawl | **68.93%**   | 938.25         |
 | exa_search_with_text      | 47.82%   | 1464.63        |
 | google_serp               | 36.65%   | 2211.16        |
 | parallel_search_one_shot  | 48.06%   | 3635.09        |
 | perplexity_search         | 46%      | **508.77**         |
 | tavily_advanced           | 50.55%   | 2690.5         |
 | tavily_basic              | 32.35%   | 2201.62        |
-| you_search                | 40.17%   | 620.2          |
-| you_search_with_livecrawl | **68.93%**   | 938.25         |
 
 
+## Requirements
+- You.com API Key
+- OpenAI API Key (for LLM synthesis and grading)
+- Python 3.10 to 3.13
+- Pip
+- Optionally, API keys for other supported providers
 
 ## Installation
 
@@ -74,7 +85,7 @@ Edit `.env` and set the keys for your chosen providers. To run evaluations for a
 | Tavily (basic / advanced)   | `TAVILY_API_KEY`        |
 | You.com                     | `YOU_API_KEY`           |
 
-Grading uses an OpenAI model; set `OPENAI_API_KEY` for the LLM judge.
+Grading uses an OpenAI model; set `OPENAI_API_KEY` for the LLM judge and synthesis.
 
 ## Usage
 
